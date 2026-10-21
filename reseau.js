@@ -47,6 +47,8 @@ const RESEAU = (function(){
     joueurs: ids => ids.length ? lire("joueurs?select=uid,nom,code&uid=in.("+ids.map(encodeURIComponent).join(",")+")") : Promise.resolve([]),
     amis: () => lire("amis?select=ami,uid&or=(uid.eq."+uid()+",ami.eq."+uid()+")"),
     ajouterAmi: code => rpc("ajouter_ami", {p_code:code}),
+    ajouterAmiId: id => rpc("ajouter_ami_id", {p_uid:id}),
+    jardiniers: () => lire("joueurs?select=uid,nom,code,sauve_le&order=sauve_le.desc.nullslast&limit=40"),
     retirerAmi: id => supprimer("amis", "uid=eq."+uid()+"&ami=eq."+id),
     annonces: () => lire("annonces?select=id,vendeur,objet,qte,prix,statut,acheteur,encaissee,cree&order=cree.desc&limit=200"),
     publier: (objet, qte, prix) => ecrire("annonces", {objet, qte, prix}),
@@ -54,7 +56,7 @@ const RESEAU = (function(){
     retirer: id => rpc("retirer", {p_id:id}),
     encaisser: id => rpc("encaisser", {p_id:id}),
     cadeaux: () => lire("cadeaux?select=id,de,a,objet,qte,mot,recu,cree&order=cree.desc&limit=100"),
-    offrir: (a, objet, qte, mot) => ecrire("cadeaux", {a, objet, qte, mot}),
+    offrir: (a, objet, mot) => ecrire("cadeaux", {a, objet, qte:1, mot}),
     recevoir: id => rpc("recevoir", {p_id:id}),
   };
 })();

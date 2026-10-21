@@ -710,7 +710,7 @@ function brancherEtals(a){
 }
 
 
-const MARCHE = {version:0, charge:false, enCours:false, erreur:"", moi:null, annonces:[], noms:{}, amis:[], suivis:[], cadeaux:[], filtre:"amis", nouveau:false, vente:null, dernierSync:0};
+const MARCHE = {version:0, charge:false, enCours:false, erreur:"", moi:null, annonces:[], noms:{}, amis:[], suivis:[], cadeaux:[], jardiniers:[], voir:null, filtre:"tous", nouveau:false, vente:null, dernierSync:0};
 const nomJoueur = id => (MARCHE.noms[id]||{}).nom || "Un jardinier";
 const objetValide = id => { const b=base(id); return !!(PLANTES[b] || DENREES[b]); };
 async function chargerMarche(silencieux){
@@ -718,8 +718,9 @@ async function chargerMarche(silencieux){
   try{
     MARCHE.moi = await RESEAU.maPartie();
     if(MARCHE.moi){
-      const [ann, liens, cad] = await Promise.all([RESEAU.annonces(), RESEAU.amis(), RESEAU.cadeaux()]);
+      const [ann, liens, cad, jard] = await Promise.all([RESEAU.annonces(), RESEAU.amis(), RESEAU.cadeaux(), RESEAU.jardiniers().catch(()=>[])]);
       MARCHE.annonces = ann||[]; MARCHE.suivis = (liens||[]).filter(l=>l.uid===RESEAU.uid()).map(l=>l.ami); MARCHE.cadeaux = cad||[];
+      MARCHE.jardiniers = (jard||[]).filter(j=>j.uid!==RESEAU.uid()); MARCHE.jardiniers.forEach(j=>MARCHE.noms[j.uid]=j);
       const ids = [...new Set([...MARCHE.annonces.map(x=>x.vendeur), ...MARCHE.annonces.map(x=>x.acheteur).filter(Boolean), ...MARCHE.suivis, ...(liens||[]).map(l=>l.uid), ...MARCHE.cadeaux.map(c=>c.de)])];
       (await RESEAU.joueurs(ids)).forEach(j=>MARCHE.noms[j.uid]=j);
       await solderMarche();
@@ -752,7 +753,8 @@ function rendreMarche(){
     <div class="formulaire"><input id="mNom" maxlength="30" placeholder="Ton nom de jardinier"><button class="choix" data-m="inscrire">Entrer au marché</button></div>`;
   const moi = RESEAU.uid(), amis = new Set(MARCHE.suivis);
   const ouvertes = MARCHE.annonces.filter(a=>a.statut==="ouverte" && a.vendeur!==moi && objetValide(a.objet));
-  const vues = MARCHE.filtre==="amis" ? ouvertes.filter(a=>amis.has(a.vendeur)) : ouvertes;
+  if(MARCHE.voir && !ouvertes.some(a=>a.vendeur===MARCHE.voir) && !MARCHE.jardiniers.some(j=>j.uid===MARCHE.voir)) MARCHE.voir = null;
+  const vues = MARCHE.voir ? ouvertes.filter(a=>a.vendeur===MARCHE.voir) : MARCHE.filtre==="amis" ? ouvertes.filter(a=>amis.has(a.vendeur)) : ouvertes;
   const mesOuvertes = MARCHE.annonces.filter(a=>a.vendeur===moi && a.statut==="ouverte");
   const carte = a => { const d=defObjet(a.objet), ami=amis.has(a.vendeur), unite=Math.round(a.prix/a.qte);
     return `<div class="article ${d.rare?"rare":""}">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${nomJoueur(a.vendeur)}${ami?" · ami":""} · ${unite} 🪙 pièce (colporteur : ${d.valeur})</small></div><button data-acheter="${a.id}" ${etat.or>=a.prix?"":"disabled"}>${a.prix} 🪙</button></div>`; };
@@ -764,14 +766,22 @@ function rendreMarche(){
       <label>Prix total 🪙 <input id="mPrix" type="number" min="1" max="99999" value="${v?v.prix:""}"></label>
       <button class="choix" data-m="publier" ${mesOuvertes.length>=10?"disabled":""}>Mettre en vente</button></div>
       <p class="intro">${mesOuvertes.length}/10 annonces. L'objet quitte ton panier tant qu'il est en vente ; tu le récupères si tu retires l'annonce.</p>` : `<p class="intro">Ton panier est vide : récolte ou cuisine d'abord.</p>`;
-  const amisListe = MARCHE.suivis.map(id=>`<div class="ligne"><div><b>${nomJoueur(id)}</b><small>Code ${(MARCHE.noms[id]||{}).code||"?"}</small></div><button data-offrir="${id}">Offrir</button></div>`).join("");
+  // les jardiniers : ceux passés récemment, plus les amis et les vendeurs du moment ; amis d'abord
+  const nAnn = id => ouvertes.filter(a=>a.vendeur===id).length;
+  const ids = [...new Set([...MARCHE.suivis, ...ouvertes.map(a=>a.vendeur), ...MARCHE.jardiniers.map(j=>j.uid)])].filter(id=>id!==moi);
+  ids.sort((x,y)=>(amis.has(y)-amis.has(x)) || (nAnn(y)-nAnn(x)));
+  const ligne = id => { const j=MARCHE.noms[id]||{}, n=nAnn(id), ami=amis.has(id), deja=ami && cadeauDuJour(id);
+    return `<div class="ligne jardinier ${MARCHE.voir===id?"choisi":""}"><button class="qui" data-voir="${id}"><b>${nomJoueur(id)}${ami?" · ami":""}</b><small>${n?`${n} annonce${n>1?"s":""}`:"rien en vente"}${j.sauve_le?` · vu ${depuis(j.sauve_le)}`:""}</small></button>`+
+      (ami ? `<button data-offrir="${id}" ${deja?"disabled":""}>${deja?"Offert aujourd'hui":"Offrir"}</button>` : `<button data-ajout="${id}">Ajouter en ami</button>`)+`</div>`; };
+  const amisListe = ids.slice(0,30).map(ligne).join("");
   return `<div class="carte-moi"><div><b>${MARCHE.moi.nom}</b><small>Ton code ami : <strong class="code">${MARCHE.moi.code}</strong>. Donne-le pour qu'on t'ajoute.</small></div><button class="choix" data-m="recharger">↻</button></div>
-    <div class="ecoutes"><button class="choix" data-filtre="amis" aria-pressed="${MARCHE.filtre==="amis"}">Amis (${ouvertes.filter(a=>amis.has(a.vendeur)).length})</button><button class="choix" data-filtre="tous" aria-pressed="${MARCHE.filtre==="tous"}">Tous (${ouvertes.length})</button></div>
-    <div class="panier">${vues.length ? vues.map(carte).join("") : `<p class="intro">${MARCHE.filtre==="amis" ? (MARCHE.suivis.length ? "Tes amis n'ont rien en vente pour l'instant." : "Ajoute un ami avec son code, plus bas, pour voir ici ce qu'il vend.") : "Personne ne vend rien pour l'instant."}</p>`}</div>
+    <div class="ecoutes"><button class="choix" data-filtre="tous" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="tous"}">Tous (${ouvertes.length})</button><button class="choix" data-filtre="amis" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="amis"}">Amis (${ouvertes.filter(a=>amis.has(a.vendeur)).length})</button>${MARCHE.voir?`<button class="choix" data-filtre="tous" aria-pressed="true">${nomJoueur(MARCHE.voir)} ✕</button>`:""}</div>
+    <div class="panier">${vues.length ? vues.map(carte).join("") : `<p class="intro">${MARCHE.voir ? `${nomJoueur(MARCHE.voir)} n'a rien en vente pour l'instant.` : MARCHE.filtre==="amis" ? (MARCHE.suivis.length ? "Tes amis n'ont rien en vente pour l'instant." : "Pas encore d'ami : ajoute un jardinier depuis la liste plus bas.") : "Personne ne vend rien pour l'instant."}</p>`}</div>
     <h3>Vendre</h3>${formVente}
     ${mesOuvertes.length ? `<h3>Tes annonces</h3><div class="panier">${mesOuvertes.map(a=>{ const d=defObjet(a.objet); return `<div class="article">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${a.prix} 🪙 demandés</small></div><button data-retirer="${a.id}">Retirer</button></div>`; }).join("")}</div>` : ""}
-    <h3>Amis</h3>${amisListe || `<p class="intro">Pas encore d'ami.</p>`}
-    <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div>
+    <h3>Les jardiniers du marché</h3><p class="intro">Touche un nom pour ne voir que ses annonces. Entre amis, on peut s'offrir un objet par jour.</p>
+    ${amisListe || `<p class="intro">Personne d'autre n'est encore passé au marché.</p>`}
+    <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Ou un code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div>
     <h3>Ta partie ailleurs</h3><p class="intro">Ta lisière est sauvegardée en ligne. Pour la reprendre sur un autre téléphone ou un ordinateur, entre-y cette clé : <strong class="code">${MARCHE.moi.cle}</strong>. Garde-la pour toi.</p>
     <div class="formulaire"><input id="mCle" maxlength="20" placeholder="Clé d'une autre partie"><button class="choix" data-m="recuperer">Reprendre</button></div>`;
 }
@@ -791,7 +801,10 @@ function brancherMarche(a){
     if(m==="recuperer"){ const cle=($("mCle").value||"").trim(); if(!cle) return;
       action(()=>RESEAU.recuperer(cle), r=>{ if(!r){ dire("Cette clé ne correspond à aucune partie."); return; } if(r.sauvegarde){ try{ localStorage.setItem(KEY, JSON.stringify(r.sauvegarde)); }catch(e){} dire("Partie reprise. La lisière se recharge…"); setTimeout(()=>location.reload(), 900); } else dire("Partie liée, mais elle n'avait pas encore de sauvegarde."); }); }
   }));
-  a.querySelectorAll("[data-filtre]").forEach(b=>b.addEventListener("click",()=>{ MARCHE.filtre=b.dataset.filtre; MARCHE.version++; cleCourrier=""; rendreCourrier(); }));
+  const revoir = () => { MARCHE.version++; cleCourrier=""; rendreCourrier(); };
+  a.querySelectorAll("[data-filtre]").forEach(b=>b.addEventListener("click",()=>{ MARCHE.filtre=b.dataset.filtre; MARCHE.voir=null; revoir(); }));
+  a.querySelectorAll("[data-voir]").forEach(b=>b.addEventListener("click",()=>{ MARCHE.voir = MARCHE.voir===b.dataset.voir ? null : b.dataset.voir; revoir(); a.scrollIntoView && a.querySelector(".ecoutes") && a.querySelector(".ecoutes").scrollIntoView({block:"nearest", behavior:"smooth"}); }));
+  a.querySelectorAll("[data-ajout]").forEach(b=>b.addEventListener("click",()=>{ b.disabled=true; action(()=>RESEAU.ajouterAmiId(b.dataset.ajout), r=>dire(r ? `${r.nom} est maintenant dans tes amis. Vous pouvez vous offrir un objet par jour.` : "Ce jardinier n'est plus au marché.")); }));
   a.querySelectorAll("[data-acheter]").forEach(b=>b.addEventListener("click",()=>{
     const ann = MARCHE.annonces.find(x=>String(x.id)===b.dataset.acheter); if(!ann || etat.or<ann.prix) return;
     action(()=>RESEAU.acheter(ann.id), r=>{ if(!r){ dire("Trop tard : quelqu'un l'a acheté avant toi."); return; } etat.or-=r.prix; ajouter(r.objet, r.qte); sauver(); rendre(); dire(`Acheté à ${nomJoueur(ann.vendeur)} : ${r.qte} ${plur(defObjet(r.objet).nom,r.qte)}, dans ton panier. −${r.prix} 🪙.`); tinter(659); tinter(784,.1); });
@@ -803,17 +816,26 @@ function brancherMarche(a){
   if(o && p){ const prop=()=>{ if(MARCHE.vente && MARCHE.vente.objet===o.value && MARCHE.vente.qte===+q.value && MARCHE.vente.prix) return; p.value = Math.max(1, Math.round(defObjet(o.value).valeur*(+q.value||1)*1.2)); MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; };
     o.addEventListener("change",()=>{ MARCHE.vente=null; prop(); }); q.addEventListener("input",()=>{ MARCHE.vente=null; prop(); }); p.addEventListener("input",()=>{ MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; }); if(!p.value) prop(); }
 }
+// un cadeau par jour et par ami (jour de Paris, comme le serveur), un seul objet
+const jourParis = d => new Date(d).toLocaleDateString("fr-CA", {timeZone:"Europe/Paris"});
+const cadeauDuJour = ami => { const auj = jourParis(Date.now()); return MARCHE.cadeaux.some(c=>c.de===RESEAU.uid() && c.a===ami && jourParis(c.cree)===auj); };
+function depuis(t){ const m = Math.max(0, (Date.now()-new Date(t))/60000);
+  return m<10 ? "à l'instant" : m<60 ? `il y a ${Math.round(m)} min` : m<1440 ? `il y a ${Math.round(m/60)} h` : m<2880 ? "hier" : `il y a ${Math.round(m/1440)} jours`; }
 function ouvrirCadeau(ami){
   const cles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0 && objetValide(k));
-  const c = ouvrirPanneau(`<h2>Offrir à ${nomJoueur(ami)}</h2><div class="corps">${cles.length ? `<p class="intro">Le cadeau arrive dans son panier la prochaine fois qu'il ouvre le jeu.</p>
+  const deja = cadeauDuJour(ami);
+  const c = ouvrirPanneau(`<h2>Offrir à ${nomJoueur(ami)}</h2><div class="corps">${deja ? `<p class="intro">Tu lui as déjà offert quelque chose aujourd'hui. Reviens demain.</p>` : cles.length ? `<p class="intro">Un objet par jour entre amis. Il arrive dans son panier la prochaine fois qu'il ouvre le jeu.</p>
     <div class="formulaire vente"><select id="cObjet">${cles.map(k=>`<option value="${k}">${defObjet(k).nom} (${etat.panier[k]})</option>`).join("")}</select>
-    <label>Quantité <input id="cQte" type="number" min="1" max="99" value="1"></label><input id="cMot" maxlength="200" placeholder="Un mot (facultatif)"></div>
+    <input id="cMot" maxlength="200" placeholder="Un mot (facultatif)"></div>
     <button class="fermer" id="cEnvoyer">Offrir</button>` : `<p class="intro">Ton panier est vide.</p>`}</div>`);
   const b=$("cEnvoyer"); if(b) b.addEventListener("click", async ()=>{
-    const objet=$("cObjet").value, qte=Math.max(1,Math.min(99,+$("cQte").value||1)), mot=($("cMot").value||"").trim()||null;
-    if((etat.panier[objet]||0)<qte){ dire("Tu n'en as pas autant."); return; }
-    try{ await RESEAU.offrir(ami, objet, qte, mot); etat.panier[objet]-=qte; if(!etat.panier[objet]) delete etat.panier[objet]; sauver(); rendre(); c.hidden=true; dire(`Envoyé à ${nomJoueur(ami)}.`); tinter(587); tinter(880,.12); }
-    catch(e){ dire(`Le cadeau n'est pas parti : ${e.message}.`); }
+    const objet=$("cObjet").value, mot=($("cMot").value||"").trim()||null;
+    if((etat.panier[objet]||0)<1){ dire("Tu n'en as plus."); return; }
+    b.disabled = true;
+    try{ const r = await RESEAU.offrir(ami, objet, mot); etat.panier[objet]-=1; if(!etat.panier[objet]) delete etat.panier[objet];
+      MARCHE.cadeaux.unshift((r&&r[0]) || {de:RESEAU.uid(), a:ami, objet, qte:1, cree:new Date().toISOString()});
+      sauver(); rendre(); c.hidden=true; dire(`Envoyé à ${nomJoueur(ami)} : ${defObjet(objet).nom}.`); tinter(587); tinter(880,.12); MARCHE.version++; cleCourrier=""; rendreCourrier(); }
+    catch(e){ b.disabled = false; dire(e.status===403 || /security|policy/i.test(e.message) ? "Un seul cadeau par jour à cet ami : reviens demain." : `Le cadeau n'est pas parti : ${e.message}.`); }
   });
 }
 // fiche d'un objet du panier : ce que c'est, d'où ça vient, ce que ça vaut, à qui ça plaît
