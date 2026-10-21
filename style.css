@@ -359,3 +359,10 @@ body.illustre .sentier .habitant img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)
 .poste b{font-family:var(--display);font-size:1.02rem}
 .poste small{display:block;color:var(--muted);line-height:1.35}
 .poste small.max{flex:none;color:var(--leaf);font-weight:700}
+/* sur un grand écran (ordinateur), le jeu garde une colonne de téléphone, centrée */
+@media (min-width:700px){
+  body{background:#0b0e18}
+  .app{left:0;right:0;margin:0 auto;max-width:520px;box-shadow:0 0 60px rgba(0,0,0,.5)}
+  .panneau{left:0;right:0;margin:0 auto;max-width:520px}
+  canvas#ciel{left:50%;width:520px;transform:translateX(-50%)}
+}
