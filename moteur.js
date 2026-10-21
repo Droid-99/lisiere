@@ -326,7 +326,7 @@ function majPot(i){
 function rendre(){
   $("lune").textContent = etat.lunes; $("or").textContent = etat.or;
   majPastille();
-  $("rosee").textContent = etat.rosee; $("roseeMax").textContent = roseeMax();
+  $("rosee").textContent = etat.rosee; $("roseeMax").textContent = roseeMax(); const rb=document.querySelector("#barre .arrosoir small"); if(rb) rb.textContent = `${etat.rosee}/${roseeMax()}`;
   const z = zoneDef(ZONE);
   $("roseeStat").hidden = true;   // la rosée a son propre bouton, à gauche des graines
   const mats = Object.keys(MATIERES).filter(k=>(etat.matieres[k]||0)>0).map(k=>`<span title="${MATIERES[k].nom}">${IMG?im(`matiere-${k}`,"ico"):MATIERES[k].emoji} <b>${etat.matieres[k]}</b></span>`).join("");
@@ -400,7 +400,7 @@ function agir(i){
       if(besoin(p)!=="rosee") dire(`${p.nom} ${besoin(p)==="pluie"?"ne boit que la pluie":"n'a besoin que de lumière"}.`);
       else if(pot.eau>0) dire(`${p.nom} n'a pas soif pour l'instant. Garde ta goutte.`);
       else if(etat.rosee<=0) dire(`Plus de rosée. Prochaine goutte dans ${duree((PLUIE?REGLES.regenRosee/2:REGLES.regenRosee)-etat.regen)}.`);
-      else { etat.rosee--; pot.eau = p.soif; dire(`${p.nom} boit. ${etat.rosee} goutte${etat.rosee>1?"s":""} en réserve.`); tinter(330); }
+      else { etat.rosee--; pot.eau = p.soif; dire(`${p.nom} boit. ${etat.rosee} goutte${etat.rosee>1?"s":""} en réserve.`); tinter(330); rendre(); }
     } else dire(`${p.nom} pousse encore (${Math.min(99,Math.floor(100*pot.age/p.duree))} %), prêt${p.g==="f"?"e":""} dans ${p.duree-pot.age<60?"moins d’une minute":duree(p.duree-pot.age)}${besoin(p)==="lumiere"?" de jour":besoin(p)==="pluie"?" de pluie":""}.` + (besoin(p)==="rosee" && pot.eau<=0 ? ` Et ${accord(p,"il","elle")} a soif.` : besoin(p)==="lumiere" && nuit() ? ` ${accord(p,"Il","Elle")} attend le jour.` : ""));
   } else {
     if(outil==="eau"){ dire("Rien à arroser ici."); return; }
@@ -1501,7 +1501,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.14.1";
+const VERSION_APP="0.14.2";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
