@@ -393,3 +393,5 @@ details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6
 .article.offre .portrait{width:2.2rem;height:2.2rem}
 .article.offre button{background:var(--soil)}
 .article.offre button[data-accepter]{background:var(--moon);color:var(--sky)}
+.onglets.sous{flex-wrap:nowrap;gap:5px}
+.onglets.sous button{padding:6px 9px;font-size:.88rem;white-space:nowrap;flex:0 1 auto;min-width:0}

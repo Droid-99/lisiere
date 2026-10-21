@@ -563,6 +563,12 @@ function livrer(id){
   dire(`${p.nom} ${l.enPersonne?ac(p,"repart content","repart contente","repartent contents"):ac(p,"sera content","sera contente","seront contents")}. +${l.or} 🪙${l.lunes?` et +${l.lunes} 🌙`:""}.`); tinter(659); tinter(784,.1); tinter(988,.2);
   evenement({type:"livraison", pnj:l.pnj}); majCourrier(0); sauver(); rendre();
 }
+function vendre(id, n){
+  n = Math.min(n, etat.panier[id]||0); if(n<=0) return;
+  const val = defObjet(id).valeur*n; etat.panier[id]-=n; if(!etat.panier[id]) delete etat.panier[id];
+  gagnerOr(val); dire(`Le colporteur prend ${n} ${plur(defObjet(id).nom, n)}. +${val} 🪙.`); tinter(523);
+  evenement({type:"vente", id}); sauver(); rendre();
+}
 const resteTxt = ms => { const h=Math.max(0,ms)/3600000; return h>=24 ? `${Math.floor(h/24)} j ${Math.floor(h%24)} h` : h>=1 ? `${Math.floor(h)} h ${String(Math.floor(h*60%60)).padStart(2,"0")}` : `${Math.max(1,Math.floor(h*60))} min`; };
 function carteLettre(l){
   const p = pnjDe(l.pnj), ok = aTout(l.items);
@@ -579,14 +585,15 @@ function rendreCourrier(){
   const demandes = {}; v.lettres.forEach(l=>Object.keys(l.items).forEach(k=>demandes[k]=1));
   const cles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0).sort((x,y)=>defObjet(y).valeur-defObjet(x).valeur);
   const panier = cles.length ? cles.map(k=>{ const d=defObjet(k), n=etat.panier[k];
-    return `<div class="article ${d.rare?"rare":""}" data-info="${k}">${ico(k,"big")}<div><b>${d.nom} ×${n}</b><small>prix du village ${d.valeur} 🪙${demandes[base(k)]?" · <em>demandé</em>":""}${d.rare?" · variante rare":""}</small></div><button data-vendre="${k}">Vendre</button></div>`; }).join("")
+    return `<div class="article ${d.rare?"rare":""}" data-info="${k}">${ico(k,"big")}<div><b>${d.nom} ×${n}</b><small>${d.valeur} 🪙 pièce${demandes[base(k)]?" · <em>demandé</em>":""}${d.rare?" · variante rare":""}</small></div><button data-vendre="${k}" data-n="1">Vendre 1</button>${n>1?`<button data-vendre="${k}" data-n="${n}">Tout · ${d.valeur*n}</button>`:""}</div>`; }).join("")
     : `<p class="intro">Vide. Ce que tu récoltes et ce que tu cuisines arrive ici.</p>`;
   const prochain = v.facteurJour===jourDe(new Date()) ? "demain matin" : "ce matin, dès 8 h";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
-  const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
+  const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché`], ...(AMIS && RESEAU.actif ? [["amis",`💌 Amis${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]] : [])].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
+  if(sousComptoir==="amis"){ a.innerHTML = onglets + rendreAmis(); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); if(sousComptoir!=="courrier"&&sousComptoir!=="panier") chargerMarche(); })); return; }
   if(sousComptoir==="marche"){ const [haut, bas] = rendreMarche().split("<!--BAS-->"); a.innerHTML = onglets + haut + rendreEtals() + bas; a.querySelectorAll("details.repli").forEach((d,i)=>{ if(i===0) d.addEventListener("toggle",()=>{ MARCHE.ouvert = d.open; }); }); brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
   const chantier = Object.keys(MATIERES).filter(k=>(MATIERES[k].chantier||MATIERES[k].outil) && (etat.matieres[k]||0)>0);
-  if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Pour vendre, mets en vente au marché : les villageois achètent ce qui est à bon prix. Les lettres paient une fois et demie le prix du village, les visites le double. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
+  if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Le colporteur achète tout, au prix de base. Les lettres paient une fois et demie, les visites le double. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
     (chantier.length ? `<h3>Pour bâtir</h3><div class="materiaux">${chantier.map(k=>`<span class="mat">${MATIERES[k].emoji} ${MATIERES[k].nom}${MATIERES[k].outil?"":` ×${etat.matieres[k]}`}</span>`).join("")}</div>` : "");
   } else a.innerHTML = onglets + `<p class="intro">${TEXTES.courrierIntro}</p>` +
     nonLus.map(ch=>`<button class="chapitre" data-lire="${ch.id}"><span class="big">📜</span><span><b>${ch.titre}</b><small>De ${ch.de}. Toucher pour lire.</small></span></button>`).join("") +
@@ -594,10 +601,10 @@ function rendreCourrier(){
     `<h3>Lettres <small>${lettres.length}</small></h3>` + (lettres.length ? lettres.map(carteLettre).join("") : `<p class="intro">Pas de lettre en attente. Anselme repasse ${prochain}.</p>`) +
     `<p class="intro fin">${v.livrees} lettre${v.livrees>1?"s":""} livrée${v.livrees>1?"s":""}. Le fil de l'histoire se relit dans le carnet.</p>`;
   a.querySelectorAll("[data-livrer]").forEach(b=>b.addEventListener("click",()=>livrer(+b.dataset.livrer)));
-  a.querySelectorAll("[data-vendre]").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation(); const k=b.dataset.vendre; MARCHE.vente={objet:k, qte:etat.panier[k]||1, prix:0}; MARCHE.allerVendre=true; sousComptoir="marche"; cleCourrier=""; rendreCourrier(); chargerMarche(); }));
+  a.querySelectorAll("[data-vendre]").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation(); vendre(b.dataset.vendre, +b.dataset.n); }));
   a.querySelectorAll("[data-info]").forEach(x=>x.addEventListener("click",()=>infoObjet(x.dataset.info)));
   a.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireChapitre(b.dataset.lire)));
-  a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; $("contenu").scrollTop=0; rendreCourrier(); if(sousComptoir==="marche") chargerMarche(); }));
+  a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; $("contenu").scrollTop=0; rendreCourrier(); if(sousComptoir==="marche" || sousComptoir==="amis") chargerMarche(); }));
 }
 
 /* ---------- marché public et amis (en ligne, via reseau.js) ----------
@@ -613,7 +620,7 @@ const emojiArticle = id => id==="graine" ? "🌼" : MATIERES[id] ? MATIERES[id].
 const possede = id => id==="graine" ? etat.graines : qte(id);
 /* Mathilde, la maraîchère : produits du potager et de la mare (jamais la fleur de lune ni les variantes rares).
    Chaque jour de marché, cinq produits tirés au sort, plus ceux que la ville ou un habitant te demande et que tu n'as pas.
-   Prix : 1,6 fois le prix du village (on ne gagne rien à revendre). Stock : beaucoup de petits, peu de gros. */
+   Prix : 1,6 fois ce que le colporteur en donne (on ne gagne rien à revendre). Stock : beaucoup de petits, peu de gros. */
 const MARAICHAGE = ["radis","tulipe","lavande","citrouille","champignon","nenuphar","roseau","iris","lotus"];
 function demandesManquantes(){
   const voulu = {};
@@ -724,6 +731,10 @@ function brancherEtals(a){
 
 // marché entre joueurs (en ligne) : mis de côté pour l'instant ; le code reste, il suffit de repasser JOUEURS à true
 const JOUEURS = false;
+// vendre au marché (annonces, villageois) : mis de côté ; on vend au colporteur, depuis le panier
+const VENTES = false;
+// amis : sauvegarde en ligne (clé pour changer d'appareil) et un cadeau d'un objet par jour entre amis
+const AMIS = true;
 const MARCHE = {version:0, charge:false, enCours:false, erreur:"", moi:null, annonces:[], noms:{}, amis:[], suivis:[], cadeaux:[], jardiniers:[], voir:null, filtre:"tous", nouveau:false, vente:null, dernierSync:0};
 const nomJoueur = id => (MARCHE.noms[id]||{}).nom || "Un jardinier";
 const objetValide = id => { const b=base(id); return !!(PLANTES[b] || DENREES[b]); };
@@ -736,18 +747,18 @@ const monEtal = () => { etat.etal = etat.etal || []; if(!JOUEURS) etat.etal.forE
 const MAX_ANNONCES = 10;
 function majMarcheVue(){ MARCHE.version++; cleCourrier=""; if(ZONE==="courrier") rendreCourrier(); majPastille(); }
 async function chargerMarche(silencieux){
-  if(!JOUEURS || !RESEAU.actif || MARCHE.enCours) return; MARCHE.enCours = true; if(!silencieux) majMarcheVue();
+  if(!(JOUEURS || AMIS) || !RESEAU.actif || MARCHE.enCours) return; MARCHE.enCours = true; if(!silencieux) majMarcheVue();
   try{
     MARCHE.moi = await RESEAU.maPartie();
     if(MARCHE.moi){
       await viderRetraits();
-      const [ann, liens, cad, jard] = await Promise.all([RESEAU.annonces(), RESEAU.amis(), RESEAU.cadeaux(), RESEAU.jardiniers().catch(()=>[])]);
+      const [ann, liens, cad, jard] = await Promise.all([JOUEURS ? RESEAU.annonces() : [], RESEAU.amis(), RESEAU.cadeaux(), RESEAU.jardiniers().catch(()=>[])]);
       MARCHE.annonces = ann||[]; MARCHE.suivis = (liens||[]).filter(l=>l.uid===RESEAU.uid()).map(l=>l.ami); MARCHE.cadeaux = cad||[];
       MARCHE.jardiniers = (jard||[]).filter(j=>j.uid!==RESEAU.uid()); MARCHE.jardiniers.forEach(j=>MARCHE.noms[j.uid]=j);
       const ids = [...new Set([...MARCHE.annonces.map(x=>x.vendeur), ...MARCHE.annonces.map(x=>x.acheteur).filter(Boolean), ...MARCHE.suivis, ...(liens||[]).map(l=>l.uid), ...MARCHE.cadeaux.map(c=>c.de)])];
       (await RESEAU.joueurs(ids)).forEach(j=>MARCHE.noms[j.uid]=j);
       await solderMarche();
-      await accorderEtal();
+      if(JOUEURS) await accorderEtal();
     }
     MARCHE.erreur = ""; MARCHE.charge = true;
   }catch(e){ MARCHE.erreur = e.message || "réseau"; }
@@ -818,6 +829,9 @@ function venteVillageois(lid, pnjId){
   sauver(); rendre(); majMarcheVue();
 }
 function villageois(){
+  if(!VENTES){ // les annonces d'avant reviennent au panier
+    const l = etat.etal||[]; if(l.length){ l.forEach(a=>ajouter(a.objet, a.qte)); etat.etal = []; annoncer(`Le marché ne prend plus d'annonces : ${l.length>1?"tes objets en vente reviennent au panier. Le colporteur les achète.":"ton objet en vente revient au panier. Le colporteur l'achète."}`); sauver(); }
+    return; }
   const maint = Date.now(); let change = false;
   for(const l of monEtal().slice()){
     const dt = Math.min(3*86400000, Math.max(0, maint - (l.vu||maint))); l.vu = maint;
@@ -834,13 +848,14 @@ function villageois(){
 setInterval(()=>{ if(!document.hidden) villageois(); }, 30000);
 // toutes les deux minutes (et au retour) : encaisser, recevoir, publier, sauvegarder en ligne
 async function syncMarche(){
-  if(!JOUEURS || !RESEAU.actif || !MARCHE.moi && MARCHE.charge) return;
+  if(!(JOUEURS || AMIS) || !RESEAU.actif || !MARCHE.moi && MARCHE.charge) return;
   if(Date.now()-MARCHE.dernierSync < 110000) return; MARCHE.dernierSync = Date.now();
   await chargerMarche(true);
   if(MARCHE.moi){ try{ await RESEAU.sauvegarder(etat); }catch(e){} }
 }
 setInterval(syncMarche, 30000);
 function rendreMarche(){
+  if(!VENTES && !JOUEURS) return "<!--BAS-->";
   const etal = monEtal(), enLigne = JOUEURS && RESEAU.actif && MARCHE.charge && MARCHE.moi && !MARCHE.erreur;
   const moi = RESEAU.uid(), amis = new Set(MARCHE.suivis);
   const ouvertes = enLigne ? MARCHE.annonces.filter(a=>a.statut==="ouverte" && a.vendeur!==moi && objetValide(a.objet)) : [];
@@ -891,12 +906,34 @@ function rendreMarche(){
   }
   return haut + "<!--BAS-->" + `<h3>Vendre au marché</h3>${formVente}` + enLigneBas;
 }
+// onglet Amis : entrer (un nom), ses amis et les autres jardiniers, les cadeaux, la clé pour changer d'appareil
+function rendreAmis(){
+  if(!RESEAU.actif) return `<p class="intro">Les amis demandent une connexion à internet.</p>`;
+  if(MARCHE.erreur) return `<p class="intro">Pas de réseau pour l'instant (${MARCHE.erreur}). Ta lisière continue sans : tout se rattrape au retour de la connexion.</p><button class="choix" data-m="recharger">Réessayer</button>`;
+  if(!MARCHE.charge) return `<p class="intro">On cherche tes amis…</p>`;
+  if(!MARCHE.moi) return `<p class="intro">Choisis un nom de jardinier : ta lisière sera sauvegardée en ligne (pour la reprendre sur un autre appareil) et tu pourras t'ajouter en ami avec d'autres jardiniers pour vous offrir un objet par jour.</p>
+    <div class="formulaire"><input id="mNom" maxlength="30" placeholder="Ton nom de jardinier"><button class="choix" data-m="inscrire">C'est moi</button></div>`;
+  const moi = RESEAU.uid(), amis = new Set(MARCHE.suivis);
+  const ids = [...new Set([...MARCHE.suivis, ...MARCHE.jardiniers.map(j=>j.uid)])].filter(id=>id!==moi);
+  ids.sort((x,y)=>amis.has(y)-amis.has(x));
+  const ligne = id => { const j=MARCHE.noms[id]||{}, ami=amis.has(id), deja=ami && cadeauDuJour(id);
+    return `<div class="ligne jardinier"><div class="qui"><b>${nomJoueur(id)}${ami?" · ami":""}</b><small>${j.sauve_le?`vu ${depuis(j.sauve_le)}`:"pas encore venu"}</small></div>`+
+      (ami ? `<button data-offrir="${id}" ${deja?"disabled":""}>${deja?"Offert aujourd'hui":"Offrir"}</button>` : `<button data-ajout="${id}">Ajouter en ami</button>`)+`</div>`; };
+  const recus = MARCHE.cadeaux.filter(c=>c.a===moi).slice(0,5).map(c=>`<div class="ligne"><div><b>${nomJoueur(c.de)}</b><small>${defObjet(c.objet).nom}${c.mot?` · « ${c.mot} »`:""} · ${depuis(c.cree)}</small></div></div>`).join("");
+  return `<div class="marche-tete"><h3>Mes amis</h3><button class="rond" data-m="recharger" aria-label="Actualiser">↻</button></div>
+    <p class="intro">Tu es <b>${MARCHE.moi.nom}</b>, code ami <strong class="code">${MARCHE.moi.code}</strong>. Entre amis, on peut s'offrir un objet par jour ; il arrive dans le panier de l'autre.</p>
+    ${ids.slice(0,30).map(ligne).join("") || `<p class="intro">Personne d'autre n'est encore venu.</p>`}
+    <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div>
+    ${recus ? `<h3>Reçus</h3>${recus}` : ""}
+    <details class="repli"><summary>Ta partie ailleurs</summary><p class="intro">Ta lisière est sauvegardée en ligne. Pour la reprendre sur un autre téléphone ou un ordinateur, entre-y cette clé : <strong class="code">${MARCHE.moi.cle}</strong>. Garde-la pour toi.</p>
+    <div class="formulaire"><input id="mCle" maxlength="20" placeholder="Clé d'une autre partie"><button class="choix" data-m="recuperer">Reprendre</button></div></details>`;
+}
 function brancherMarche(a){
   const action = async (fn, ok) => { try{ const r = await fn(); if(ok) ok(r); }catch(e){ dire(`Le marché n'a pas pu : ${e.message}.`); } chargerMarche(); };
   a.querySelectorAll("[data-m]").forEach(b=>b.addEventListener("click",()=>{
     const m = b.dataset.m;
     if(m==="recharger") chargerMarche();
-    if(m==="inscrire"){ const nom=($("mNom").value||"").trim(); if(!nom){ dire("Choisis d'abord un nom."); return; } action(()=>RESEAU.inscrire(nom), ()=>{ dire(`Bienvenue au marché, ${nom}.`); RESEAU.sauvegarder(etat).catch(()=>{}); }); }
+    if(m==="inscrire"){ const nom=($("mNom").value||"").trim(); if(!nom){ dire("Choisis d'abord un nom."); return; } action(()=>RESEAU.inscrire(nom), ()=>{ dire(`Bienvenue, ${nom}.`); RESEAU.sauvegarder(etat).catch(()=>{}); }); }
     if(m==="ami"){ const code=($("mCode").value||"").trim(); if(!code) return; action(()=>RESEAU.ajouterAmi(code), r=>dire(r ? `${r.nom} est maintenant dans tes amis.` : "Aucun jardinier n'a ce code.")); }
     if(m==="publier"){ const objet=$("mObjet").value, qte=Math.max(1,Math.min(99,+$("mQte").value||1)), prix=Math.max(1,Math.min(99999,+$("mPrix").value||0));
       if(!prix){ dire("Indique un prix."); return; } if((etat.panier[objet]||0)<qte){ dire("Tu n'en as pas autant."); return; }
@@ -962,10 +999,10 @@ function infoObjet(id){
   const veulent = VILLE.filter(v=>v.envies.some(e=>e[0]===b)).map(v=>v.nom);
   const lignes = [];
   if(d.rare){ lignes.push(["Une variante rare", `C'est une forme rare de ${p.nom.toLowerCase()}, comme il en existe chez les vrais jardiniers. Chaque récolte a environ ${Math.round((.04+fx().rare)*100)} % de chances de sortir ainsi ; l'amélioration « Œil de jardinier », à l'atelier, augmente cette chance.`]);
-    lignes.push(["Ce qu'elle vaut", `${d.valeur} 🪙 au prix du village, trois fois une ${p.nom.toLowerCase()} ordinaire. Offerte à un habitant, elle rapporte plus de lunes. Elle compte dans l'herbier du carnet. Une lettre qui demande des ${plur(p.nom,2)} l'accepte aussi, en dernier recours.`]); }
+    lignes.push(["Ce qu'elle vaut", `${d.valeur} 🪙 au colporteur, trois fois une ${p.nom.toLowerCase()} ordinaire. Offerte à un habitant, elle rapporte plus de lunes. Elle compte dans l'herbier du carnet. Une lettre qui demande des ${plur(p.nom,2)} l'accepte aussi, en dernier recours.`]); }
   else if(p) lignes.push(["D'où ça vient", `Récoltée au ${zoneDef(p.zone).nom.toLowerCase()} : ${duree(p.duree)} de pousse${besoin(p)==="lumiere"?" de jour":besoin(p)==="pluie"?", seulement les jours de pluie":""}. Vaut ${d.valeur} 🪙 au colporteur.`]);
-  else if(r) lignes.push(["Un plat de l'atelier", `${r.texte} Il faut ${listeObjets(r.ingr)}. Vaut ${d.valeur} 🪙 au prix du village.`]);
-  else if(b==="poire") lignes.push(["Du poirier", `Le poirier en laisse trois chaque aube. Vaut ${d.valeur} 🪙 au prix du village.`]);
+  else if(r) lignes.push(["Un plat de l'atelier", `${r.texte} Il faut ${listeObjets(r.ingr)}. Vaut ${d.valeur} 🪙 au colporteur.`]);
+  else if(b==="poire") lignes.push(["Du poirier", `Le poirier en laisse trois chaque aube. Vaut ${d.valeur} 🪙 au colporteur.`]);
   if(aiment.length) lignes.push(["Qui l'aime", `${aiment.join(", ")}.`.replace(/^./,x=>x.toUpperCase())]);
   if(veulent.length) lignes.push(["Qui en commande", veulent.join(", ")+"."]);
   ouvrirPanneau(`<h2>${d.nom}</h2><div class="corps"><div class="pied-visite">${ico(id,"grand")}</div>${lignes.map(([t,x])=>`<div class="regle"><b>${t}</b><small>${x}</small></div>`).join("")}</div>`);
@@ -1395,7 +1432,7 @@ function ouvrirPanneau(html){
 }
 const REGLES_TEXTE = [
   ["Le temps", "Tout se passe en temps réel, en minutes et en heures, même quand l'appli est fermée (douze heures de pousse au plus sont rattrapées au retour). Le vrai lever et le vrai coucher du soleil (calculés pour la région parisienne) font l'aube, le jour, le crépuscule et la nuit ; la date décide du temps du jour (clair, nuageux, brume, pluie ou tempête), avec des chances qui changent selon la saison. La pluie et la tempête arrosent toutes seules ; la tempête fait fuir presque tous les visiteurs."],
-  ["Deux monnaies", "L'or 🪙 vient du commerce : vendre au marché (les villageois achètent ce qui est à bon prix), livrer les lettres de Saint-Aubin, servir ceux qui montent te voir. Il paie les graines, les nouveaux pots et les constructions. Les lunes 🌙 viennent du lien : saluer les visiteurs, aider et gâter les habitants, trouver les secrets. Elles paient les recettes et les améliorations de l'atelier."],
+  ["Deux monnaies", "L'or 🪙 vient du commerce : vendre au colporteur, livrer les lettres de Saint-Aubin, servir ceux qui montent te voir. Il paie les graines, les nouveaux pots et les constructions. Les lunes 🌙 viennent du lien : saluer les visiteurs, aider et gâter les habitants, trouver les secrets. Elles paient les recettes et les améliorations de l'atelier."],
   ["Semer et récolter", "Choisis une graine dans la barre, touche une place libre. Une plante prête se récolte d'un toucher et part dans le panier (onglet Comptoir). Parfois, une récolte sort en variante rare : elle vaut trois fois plus et remplit l'herbier du carnet."],
   ["Le comptoir", "Le comptoir rassemble le courrier et le panier. Anselme, le facteur, monte chaque matin dès 8 h avec quelques lettres. Chacune demande des récoltes ou des plats, avec un délai ; tant que tu as tout dans le panier, le bouton Livrer s'allume. Une lettre qui expire s'en va sans pénalité. Certains jours, quelqu'un monte en personne : il attend sur la carte, près du sentier, quelques heures, et paie le double. Les livraisons font avancer l'histoire d'Odile."],
   ["La cuisine", "À l'atelier, une recette transforme des récoltes en plat, qui se vend plus cher et que la ville commande. Les recettes s'apprennent avec des lunes."],
@@ -1403,7 +1440,7 @@ const REGLES_TEXTE = [
   ["La mare", "Les plantes d'eau n'ont jamais soif : elles poussent à la lumière, de l'aube au crépuscule, et attendent la nuit sans dommage."],
   ["Les visiteurs", "Chacun vient pour une raison précise : une plante en fleur, une heure, une météo, la taille du jardin. Il reste un moment sur le sentier ; touche-le pour le saluer, il laisse des lunes, parfois une graine rare ou une matière. Le carnet donne un indice pour ceux que tu n'as pas encore vus. Quand tu reviens après une absence, la lisière te raconte ce qui s'est passé, et quelqu'un a parfois laissé quelque chose sur le seuil."],
   ["Le son", "La lisière s'écoute : de vrais enregistrements de nature, qui suivent l'heure, la météo et le lieu (grenouilles à la mare, feu à l'atelier, le dehors étouffé quand tu es dedans). Tout se règle dans le carnet, onglet Son : volumes par famille, chaque élément à part, ambiances fixes, minuterie, lecture en arrière-plan."],
-  ["Le marché", "Au comptoir, onglet Marché. Les étals de Saint-Aubin vendent les matériaux et les outils pour bâtir (planches, clous, pierre, tuiles, vitres, marteau, scie, truelle, jeune poirier) ; leurs prix bougent un peu chaque jour. Chaque marchand vient à ses jours, avec un stock limité. À force d'acheter chez lui, il propose son apprenti : tu le paies une fois, il s'installe à la lisière et produit en continu, même quand tu n'es pas là ; tu améliores son poste avec de l'or. Quand sa réserve est pleine, il se repose. Mathilde, la maraîchère, vend ce qui pousse au potager et à la mare, et garde pour toi ce qu'on te demande. Pour vendre, mets en vente : les villageois achètent selon le prix, vite si c'est bon marché, lentement si c'est cher, jamais si c'est très cher ; tu peux leur demander de te consulter avant."],
+  ["Le marché", "Au comptoir, onglet Marché. Les étals de Saint-Aubin vendent les matériaux et les outils pour bâtir (planches, clous, pierre, tuiles, vitres, marteau, scie, truelle, jeune poirier) ; leurs prix bougent un peu chaque jour. Chaque marchand vient à ses jours, avec un stock limité. À force d'acheter chez lui, il propose son apprenti : tu le paies une fois, il s'installe à la lisière et produit en continu, même quand tu n'es pas là ; tu améliores son poste avec de l'or. Quand sa réserve est pleine, il se repose. Mathilde, la maraîchère, vend ce qui pousse au potager et à la mare, et garde pour toi ce qu'on te demande."],
   ["Bâtir", "Chaque bâtiment demande de l'or, des matériaux et des outils. Les outils ne s'usent pas : un marteau suffit pour toute la vie de la lisière."],
   ["Les fêtes", "Certaines dates comptent : la nuit des citrouilles, fin octobre, a sa recette, ses visiteurs et ses lettres."],
   ["Le village", "La carte est l'écran d'accueil. Pince pour zoomer ou dézoomer, touche deux fois pour passer de la vue d'ensemble à la vue rapprochée. Touche les terres pour le potager, l'étang pour la mare, une pierre plate pour bâtir. Un bâtiment coûte de l'or et se construit en jours réels, un chantier à la fois. Chaque bâtiment fini change une règle pour de bon. La cabane donne le seuil : le résumé de ce qui t'attend."],
@@ -1504,7 +1541,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.0";
+const VERSION_APP="0.15.2";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
