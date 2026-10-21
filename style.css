@@ -381,3 +381,4 @@ body.illustre .sentier .habitant img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)
 .article.mienne{background:var(--soil2)}
 details.repli{margin-top:12px;border-top:1px solid #4a3f61;padding-top:8px}
 details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6px 0}
+.portrait .emo{display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.6rem}
