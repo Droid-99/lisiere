@@ -83,7 +83,7 @@ CONTENU.ZONES = [
             "pluie"   (ne se sème que sous la pluie, n'a jamais soif)
             "lumiere" (ne pousse qu'à l'aube et le jour, jamais soif ; la nuit elle attend)
    prix   : en or (0 = gratuit, null = pas en vente, obtenue autrement)
-   valeur : or que le colporteur en donne ; les lettres de la ville paient davantage
+   valeur : prix du village (référence du marché : en dessous c'est bon marché, au-dessus c'est cher) ; les lettres de la ville paient davantage
    rare   : nom de la variante rare (chance à chaque récolte, trois fois la valeur)
    matiere : {id, proba} matière rare laissée parfois à la récolte
    g      : genre grammatical ; art : dessin (quatre stades) ; graine : se sème avec une graine rare
@@ -271,7 +271,7 @@ CONTENU.HABITANTS = [
 
 /* ---------- DENRÉES ----------
    Ce qui va dans le panier sans être une plante : fruits, plats cuisinés. Les plantes récoltées y vont aussi.
-   valeur : or que le colporteur en donne.
+   valeur : prix du village (référence du marché : en dessous c'est bon marché, au-dessus c'est cher).
 */
 CONTENU.DENREES = {
   poire:    {img:true, nom:"Poire",               g:"f", emoji:"🍐", valeur:10},
@@ -748,7 +748,7 @@ CONTENU.TEXTES = {
   soleil:       "On ne regarde pas le soleil.",
   roseeAube:    "L'aube. La rosée est tombée : réserve pleine.",
   atelierIntro: "La cuisine transforme les récoltes, les améliorations se paient en lunes, et ce que les visiteurs laissent devient des objets.",
-  courrierIntro:"Anselme monte chaque matin avec les lettres de Saint-Aubin. Ce que tu récoltes attend dans le panier : livre-le, offre-le aux habitants, ou vends-le au colporteur.",
+  courrierIntro:"Anselme monte chaque matin avec les lettres de Saint-Aubin. Ce que tu récoltes attend dans le panier : livre-le, offre-le aux habitants, ou mets-le en vente au marché, où passent les villageois.",
   villageVide:  "Une clairière à la lisière du bois. Des terres, un étang, et de la place. Touche les terres ou l'étang pour y aller ; touche une pierre plate pour bâtir.",
   chantierUn:   "Un seul chantier à la fois : la lisière n'a qu'une paire de bras.",
 };

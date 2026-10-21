@@ -382,3 +382,14 @@ body.illustre .sentier .habitant img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)
 details.repli{margin-top:12px;border-top:1px solid #4a3f61;padding-top:8px}
 details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6px 0}
 .portrait .emo{display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.6rem}
+.formulaire .cote{flex-basis:100%;margin:0;font-size:.85rem;color:var(--muted)}
+.formulaire .cote[data-niveau="0"]::before{content:"▼▼ "}
+.formulaire .cote[data-niveau="1"]::before{content:"▼ "}
+.formulaire .cote[data-niveau="2"]::before{content:"▲ "}
+.formulaire .cote[data-niveau="3"]::before{content:"▲▲ "}
+.formulaire label.large{flex-basis:100%;display:flex;gap:8px;align-items:center}
+.formulaire label.large select{flex:1}
+.article.offre{background:var(--soil2);box-shadow:inset 0 0 0 2px var(--moon)}
+.article.offre .portrait{width:2.2rem;height:2.2rem}
+.article.offre button{background:var(--soil)}
+.article.offre button[data-accepter]{background:var(--moon);color:var(--sky)}

@@ -563,12 +563,6 @@ function livrer(id){
   dire(`${p.nom} ${l.enPersonne?ac(p,"repart content","repart contente","repartent contents"):ac(p,"sera content","sera contente","seront contents")}. +${l.or} 🪙${l.lunes?` et +${l.lunes} 🌙`:""}.`); tinter(659); tinter(784,.1); tinter(988,.2);
   evenement({type:"livraison", pnj:l.pnj}); majCourrier(0); sauver(); rendre();
 }
-function vendre(id, n){
-  n = Math.min(n, etat.panier[id]||0); if(n<=0) return;
-  const val = defObjet(id).valeur*n; etat.panier[id]-=n; if(!etat.panier[id]) delete etat.panier[id];
-  gagnerOr(val); dire(`Le colporteur prend ${n} ${plur(defObjet(id).nom, n)}. +${val} 🪙.`); tinter(523);
-  evenement({type:"vente", id}); sauver(); rendre();
-}
 const resteTxt = ms => { const h=Math.max(0,ms)/3600000; return h>=24 ? `${Math.floor(h/24)} j ${Math.floor(h%24)} h` : h>=1 ? `${Math.floor(h)} h ${String(Math.floor(h*60%60)).padStart(2,"0")}` : `${Math.max(1,Math.floor(h*60))} min`; };
 function carteLettre(l){
   const p = pnjDe(l.pnj), ok = aTout(l.items);
@@ -585,14 +579,14 @@ function rendreCourrier(){
   const demandes = {}; v.lettres.forEach(l=>Object.keys(l.items).forEach(k=>demandes[k]=1));
   const cles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0).sort((x,y)=>defObjet(y).valeur-defObjet(x).valeur);
   const panier = cles.length ? cles.map(k=>{ const d=defObjet(k), n=etat.panier[k];
-    return `<div class="article ${d.rare?"rare":""}" data-info="${k}">${ico(k,"big")}<div><b>${d.nom} ×${n}</b><small>${d.valeur} 🪙 pièce${demandes[base(k)]?" · <em>demandé</em>":""}${d.rare?" · variante rare":""}</small></div><button data-vendre="${k}" data-n="1">Vendre 1</button>${n>1?`<button data-vendre="${k}" data-n="${n}">Tout · ${d.valeur*n}</button>`:""}</div>`; }).join("")
+    return `<div class="article ${d.rare?"rare":""}" data-info="${k}">${ico(k,"big")}<div><b>${d.nom} ×${n}</b><small>prix du village ${d.valeur} 🪙${demandes[base(k)]?" · <em>demandé</em>":""}${d.rare?" · variante rare":""}</small></div><button data-vendre="${k}">Vendre</button></div>`; }).join("")
     : `<p class="intro">Vide. Ce que tu récoltes et ce que tu cuisines arrive ici.</p>`;
   const prochain = v.facteurJour===jourDe(new Date()) ? "demain matin" : "ce matin, dès 8 h";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
   const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
   if(sousComptoir==="marche"){ const m = rendreMarche(), [haut, bas] = m.includes("<!--BAS-->") ? m.split("<!--BAS-->") : ["", `<h3>Le marché des jardiniers</h3>` + m]; a.innerHTML = onglets + haut + rendreEtals() + bas; a.querySelectorAll("details.repli").forEach((d,i)=>{ if(i===0) d.addEventListener("toggle",()=>{ MARCHE.ouvert = d.open; }); }); brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
   const chantier = Object.keys(MATIERES).filter(k=>(MATIERES[k].chantier||MATIERES[k].outil) && (etat.matieres[k]||0)>0);
-  if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Le colporteur achète tout, au prix de base. Les lettres paient une fois et demie, les visites le double, et au marché, c'est toi qui fixes le prix. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
+  if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Pour vendre, mets en vente au marché : les villageois achètent ce qui est à bon prix, les autres jardiniers aussi. Les lettres paient une fois et demie le prix du village, les visites le double. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
     (chantier.length ? `<h3>Pour bâtir</h3><div class="materiaux">${chantier.map(k=>`<span class="mat">${MATIERES[k].emoji} ${MATIERES[k].nom}${MATIERES[k].outil?"":` ×${etat.matieres[k]}`}</span>`).join("")}</div>` : "");
   } else a.innerHTML = onglets + `<p class="intro">${TEXTES.courrierIntro}</p>` +
     nonLus.map(ch=>`<button class="chapitre" data-lire="${ch.id}"><span class="big">📜</span><span><b>${ch.titre}</b><small>De ${ch.de}. Toucher pour lire.</small></span></button>`).join("") +
@@ -600,7 +594,7 @@ function rendreCourrier(){
     `<h3>Lettres <small>${lettres.length}</small></h3>` + (lettres.length ? lettres.map(carteLettre).join("") : `<p class="intro">Pas de lettre en attente. Anselme repasse ${prochain}.</p>`) +
     `<p class="intro fin">${v.livrees} lettre${v.livrees>1?"s":""} livrée${v.livrees>1?"s":""}. Le fil de l'histoire se relit dans le carnet.</p>`;
   a.querySelectorAll("[data-livrer]").forEach(b=>b.addEventListener("click",()=>livrer(+b.dataset.livrer)));
-  a.querySelectorAll("[data-vendre]").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation(); vendre(b.dataset.vendre, +b.dataset.n); }));
+  a.querySelectorAll("[data-vendre]").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation(); const k=b.dataset.vendre; MARCHE.vente={objet:k, qte:etat.panier[k]||1, prix:0}; MARCHE.allerVendre=true; sousComptoir="marche"; cleCourrier=""; rendreCourrier(); chargerMarche(); }));
   a.querySelectorAll("[data-info]").forEach(x=>x.addEventListener("click",()=>infoObjet(x.dataset.info)));
   a.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireChapitre(b.dataset.lire)));
   a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; $("contenu").scrollTop=0; rendreCourrier(); if(sousComptoir==="marche") chargerMarche(); }));
@@ -619,7 +613,7 @@ const emojiArticle = id => id==="graine" ? "🌼" : MATIERES[id] ? MATIERES[id].
 const possede = id => id==="graine" ? etat.graines : qte(id);
 /* Mathilde, la maraîchère : produits du potager et de la mare (jamais la fleur de lune ni les variantes rares).
    Chaque jour de marché, cinq produits tirés au sort, plus ceux que la ville ou un habitant te demande et que tu n'as pas.
-   Prix : 1,6 fois ce que le colporteur en donne (on ne gagne rien à revendre). Stock : beaucoup de petits, peu de gros. */
+   Prix : 1,6 fois le prix du village (on ne gagne rien à revendre). Stock : beaucoup de petits, peu de gros. */
 const MARAICHAGE = ["radis","tulipe","lavande","citrouille","champignon","nenuphar","roseau","iris","lotus"];
 function demandesManquantes(){
   const voulu = {};
@@ -743,7 +737,7 @@ async function chargerMarche(silencieux){
       (await RESEAU.joueurs(ids)).forEach(j=>MARCHE.noms[j.uid]=j);
       await solderMarche();
     }
-    MARCHE.erreur = ""; MARCHE.charge = true;
+    MARCHE.erreur = ""; MARCHE.charge = true; if(MARCHE.moi) villageois();
   }catch(e){ MARCHE.erreur = e.message || "réseau"; }
   MARCHE.enCours = false; MARCHE.version++; cleCourrier=""; if(ZONE==="courrier") rendreCourrier(); majPastille();
 }
@@ -756,6 +750,50 @@ async function solderMarche(){
     const r = await RESEAU.recevoir(c.id); if(r && objetValide(r.objet)){ ajouter(r.objet, r.qte); c.recu = true; rien=false; annoncer(`${nomJoueur(c.de)} t'offre ${r.qte} ${plur(defObjet(r.objet).nom, r.qte)}${r.mot?` : « ${r.mot} »`:"."} C'est dans le panier.`); tinter(587); tinter(784,.12); tinter(988,.24); } }
   if(!rien){ sauver(); rendre(); }
 }
+/* ---------- les villageois achètent au marché (le colporteur n'existe plus) ----------
+   Chaque annonce est jugée par rapport au prix du village (valeur × quantité). Un villageois passe au hasard,
+   d'autant plus vite que c'est bon marché ; très cher, il ne passe jamais (seuls les jardiniers achètent).
+   Selon le réglage de l'annonce, il achète aussitôt, ou fait une offre qu'on accepte ou non (pour garder l'objet à un ami). */
+const COTES = [
+  {max:.85, nom:"Très bon marché", niveau:0, moyenne:20*60000, delai:"un villageois passera vite"},
+  {max:1.1, nom:"Bon marché", niveau:1, moyenne:2*3600000, delai:"un villageois passera dans les heures qui viennent"},
+  {max:1.4, nom:"Cher", niveau:2, moyenne:10*3600000, delai:"un villageois finira par passer, sans se presser"},
+  {max:Infinity, nom:"Très cher", niveau:3, moyenne:Infinity, delai:"aucun villageois n'achètera, seulement les jardiniers"}];
+function cote(objet, n, prix){ const r = prix / Math.max(1, defObjet(objet).valeur*n); return COTES.find(c=>r<=c.max); }
+const MODES_VENTE = {auto:{nom:"achètent sans me demander", court:"villageois bienvenus"}, demander:{nom:"me demandent d'abord", court:"sur offre"}, jamais:{nom:"n'achètent pas (gardé aux jardiniers)", court:"jardiniers seulement"}};
+const modeVente = id => ((etat.ventes||{})[id]||{}).mode || "auto";
+const offreDe = id => { const v=(etat.ventes||{})[id]; return v && v.offre && v.offre.fin>Date.now() ? v.offre : null; };
+const pnjAuHasard = () => VILLE[Math.floor(Math.random()*VILLE.length)];
+async function venteVillageois(a, pnjId){
+  const p = pnjDe(pnjId);
+  try{ const r = await RESEAU.retirer(a.id); if(!r) return;   // un jardinier l'a achetée juste avant
+    gagnerOr(a.prix); a.statut="retiree"; delete (etat.ventes||{})[a.id]; evenement({type:"vente", id:a.objet});
+    annoncer(`${p.nom} ${p.g==="pl"?"ont":"a"} acheté tes ${plur(defObjet(a.objet).nom, a.qte)} ×${a.qte} au marché : +${a.prix} 🪙.`); tinter(659); tinter(880,.12);
+    sauver(); rendre(); MARCHE.version++; cleCourrier=""; if(ZONE==="courrier") rendreCourrier(); majPastille();
+  }catch(e){}
+}
+let villageoisEnCours = false;
+async function villageois(){
+  if(!MARCHE.moi || villageoisEnCours) return; villageoisEnCours = true;
+  const moi = RESEAU.uid(), maint = Date.now(); etat.ventes = etat.ventes||{};
+  try{
+    for(const a of MARCHE.annonces.filter(x=>x.vendeur===moi && x.statut==="ouverte")){
+      const v = etat.ventes[a.id] = etat.ventes[a.id] || {mode:"auto", vu:new Date(a.cree).getTime()||maint};
+      const dt = Math.min(3*86400000, Math.max(0, maint - v.vu)); v.vu = maint;
+      if(v.mode==="jamais" || offreDe(a.id)) continue;
+      const c = cote(a.objet, a.qte, a.prix); if(!isFinite(c.moyenne)) continue;
+      if(Math.random() >= 1 - Math.exp(-dt / c.moyenne)) continue;
+      const p = pnjAuHasard();
+      if(v.mode==="auto") await venteVillageois(a, p.id);
+      else { v.offre = {pnj:p.id, fin:maint+8*3600000}; annoncer(`${p.nom} ${p.g==="pl"?"voudraient":"voudrait"} tes ${plur(defObjet(a.objet).nom, a.qte)} ×${a.qte} pour ${a.prix} 🪙. Réponds au marché.`); tinter(587); MARCHE.version++; cleCourrier=""; if(ZONE==="courrier") rendreCourrier(); majPastille(); }
+    }
+    // oublier les annonces qui ne sont plus ouvertes
+    const ouvertes = new Set(MARCHE.annonces.filter(x=>x.vendeur===moi && x.statut==="ouverte").map(x=>String(x.id)));
+    for(const id in etat.ventes) if(!ouvertes.has(String(id))) delete etat.ventes[id];
+    sauver();
+  }finally{ villageoisEnCours = false; }
+}
+setInterval(()=>{ if(MARCHE.charge && !document.hidden) villageois(); }, 30000);
 // toutes les deux minutes (et au retour) : encaisser, recevoir, sauvegarder en ligne
 async function syncMarche(){
   if(!RESEAU.actif || !MARCHE.moi && MARCHE.charge) return;
@@ -775,16 +813,18 @@ function rendreMarche(){
   const vues = MARCHE.voir ? ouvertes.filter(a=>a.vendeur===MARCHE.voir) : MARCHE.filtre==="amis" ? ouvertes.filter(a=>amis.has(a.vendeur)) : ouvertes;
   const mesOuvertes = MARCHE.annonces.filter(a=>a.vendeur===moi && a.statut==="ouverte");
   const carte = a => { const d=defObjet(a.objet), ami=amis.has(a.vendeur), unite=Math.round(a.prix/a.qte);
-    return `<div class="article ${d.rare?"rare":""}">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${nomJoueur(a.vendeur)}${ami?" · ami":""} · colporteur ${d.valeur*a.qte} 🪙</small></div><button data-acheter="${a.id}" ${etat.or>=a.prix?"":"disabled"}>${a.prix} 🪙</button></div>`; };
-  const mienne = a => { const d=defObjet(a.objet); return `<div class="article mienne">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>ton annonce</small></div><button data-retirer="${a.id}">Retirer ${a.prix} 🪙</button></div>`; };
+    return `<div class="article ${d.rare?"rare":""}">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${nomJoueur(a.vendeur)}${ami?" · ami":""} · ${cote(a.objet,a.qte,a.prix).nom}</small></div><button data-acheter="${a.id}" ${etat.or>=a.prix?"":"disabled"}>${a.prix} 🪙</button></div>`; };
+  const mienne = a => { const d=defObjet(a.objet), m=modeVente(a.id); return `<div class="article mienne">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte} · ${a.prix} 🪙</b><small>${cote(a.objet,a.qte,a.prix).nom} · ${MODES_VENTE[m].court}</small></div><button data-retirer="${a.id}">Retirer</button></div>`; };
   const panierCles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0 && objetValide(k));
   const v = MARCHE.vente;
   const formVente = panierCles.length ? `<div class="formulaire vente">
       <select id="mObjet">${panierCles.map(k=>`<option value="${k}" ${v&&v.objet===k?"selected":""}>${defObjet(k).nom} (${etat.panier[k]})</option>`).join("")}</select>
       <label>Quantité <input id="mQte" type="number" min="1" max="99" value="${v?v.qte:1}"></label>
-      <label>Prix total 🪙 <input id="mPrix" type="number" min="1" max="99999" value="${v?v.prix:""}"></label>
+      <label>Prix total 🪙 <input id="mPrix" type="number" min="1" max="99999" value="${v&&v.prix?v.prix:""}"></label>
+      <p class="cote" id="mCote"></p>
+      <label class="large">Les villageois <select id="mMode">${Object.entries(MODES_VENTE).map(([k,m])=>`<option value="${k}" ${(etat.modeVente||"auto")===k?"selected":""}>${m.nom}</option>`).join("")}</select></label>
       <button class="choix" data-m="publier" ${mesOuvertes.length>=10?"disabled":""}>Mettre en vente</button></div>
-      <p class="intro">${mesOuvertes.length}/10 annonces. L'objet quitte ton panier tant qu'il est en vente ; tu le récupères si tu retires l'annonce.</p>` : `<p class="intro">Ton panier est vide.</p>`;
+      <p class="intro">${mesOuvertes.length}/10 annonces. L'objet quitte ton panier tant qu'il est en vente ; tu le récupères si tu retires l'annonce. Plus c'est bon marché, plus vite un villageois passe : quelques minutes à très bon marché, quelques heures à bon marché, une journée quand c'est cher. Très cher, seuls les jardiniers achètent.</p>` : `<p class="intro">Ton panier est vide.</p>`;
   // les jardiniers : ceux passés récemment, plus les amis et les vendeurs du moment ; amis d'abord
   const nAnn = id => ouvertes.filter(a=>a.vendeur===id).length;
   const ids = [...new Set([...MARCHE.suivis, ...ouvertes.map(a=>a.vendeur), ...MARCHE.jardiniers.map(j=>j.uid)])].filter(id=>id!==moi);
@@ -797,7 +837,9 @@ function rendreMarche(){
   const nAmis = ouvertes.filter(a=>amis.has(a.vendeur)).length;
   const puces = (ouvertes.length || MARCHE.voir) ? `<div class="ecoutes mini">${MARCHE.voir ? `<button class="choix" data-filtre="tous" aria-pressed="true">${nomJoueur(MARCHE.voir)} ✕</button>` : `<button class="choix" data-filtre="tous" aria-pressed="${MARCHE.filtre==="tous"}">Tous ${ouvertes.length}</button>${MARCHE.suivis.length?`<button class="choix" data-filtre="amis" aria-pressed="${MARCHE.filtre==="amis"}">Amis ${nAmis}</button>`:""}`}</div>` : "";
   const vide = MARCHE.voir ? `${nomJoueur(MARCHE.voir)} n'a rien en vente.` : MARCHE.filtre==="amis" ? "Tes amis n'ont rien en vente." : "Aucune annonce pour l'instant. On vend tout en bas.";
-  const haut = `<div class="marche-tete"><h3>Le marché des jardiniers</h3><button class="rond" data-m="recharger" aria-label="Actualiser">↻</button></div>${puces}
+  const offres = mesOuvertes.filter(a=>offreDe(a.id)).map(a=>{ const o=offreDe(a.id), p=pnjDe(o.pnj), d=defObjet(a.objet);
+    return `<div class="article offre">${portrait(p,true)}<div><b>${p.nom} voudrait ${d.nom} ×${a.qte}</b><small>pour ${a.prix} 🪙 · l'offre tient ${resteTxt(o.fin-Date.now())}</small></div><button data-accepter="${a.id}">Vendre</button><button data-garder="${a.id}">Garder</button></div>`; }).join("");
+  const haut = `<div class="marche-tete"><h3>Le marché des jardiniers</h3><button class="rond" data-m="recharger" aria-label="Actualiser">↻</button></div>${offres?`<div class="panier marche">${offres}</div>`:""}${puces}
     <div class="panier marche">${vues.map(carte).join("")}${mesOuvertes.map(mienne).join("")}${(vues.length||mesOuvertes.length) ? "" : `<p class="intro">${vide}</p>`}</div>`;
   const bas = `<h3>Vendre au marché</h3>${formVente}
     <details class="repli" ${MARCHE.ouvert?"open":""}><summary>Jardiniers, amis et cadeaux</summary>
@@ -819,7 +861,8 @@ function brancherMarche(a){
       if(!prix){ dire("Indique un prix."); return; } if((etat.panier[objet]||0)<qte){ dire("Tu n'en as pas autant."); return; }
       // l'objet ne quitte le panier qu'une fois l'annonce acceptée par le serveur
       MARCHE.vente = null; b.disabled = true;
-      action(()=>RESEAU.publier(objet,qte,prix), ()=>{ etat.panier[objet]-=qte; if(!etat.panier[objet]) delete etat.panier[objet]; sauver(); rendre(); dire(`En vente : ${qte} ${plur(defObjet(objet).nom,qte)} pour ${prix} 🪙.`); tinter(523); });
+      const mode = ($("mMode")||{}).value || "auto"; etat.modeVente = mode;
+      action(()=>RESEAU.publier(objet,qte,prix), r=>{ const id = r && r[0] && r[0].id; if(id!=null){ etat.ventes = etat.ventes||{}; etat.ventes[id] = {mode, vu:Date.now()}; } etat.panier[objet]-=qte; if(!etat.panier[objet]) delete etat.panier[objet]; sauver(); rendre(); dire(`En vente : ${qte} ${plur(defObjet(objet).nom,qte)} pour ${prix} 🪙.`); tinter(523); });
     }
     if(m==="recuperer"){ const cle=($("mCle").value||"").trim(); if(!cle) return;
       action(()=>RESEAU.recuperer(cle), r=>{ if(!r){ dire("Cette clé ne correspond à aucune partie."); return; } if(r.sauvegarde){ try{ localStorage.setItem(KEY, JSON.stringify(r.sauvegarde)); }catch(e){} dire("Partie reprise. La lisière se recharge…"); setTimeout(()=>location.reload(), 900); } else dire("Partie liée, mais elle n'avait pas encore de sauvegarde."); }); }
@@ -834,10 +877,14 @@ function brancherMarche(a){
   }));
   a.querySelectorAll("[data-retirer]").forEach(b=>b.addEventListener("click",()=>action(()=>RESEAU.retirer(+b.dataset.retirer), r=>{ if(r){ ajouter(r.objet, r.qte); sauver(); dire(`Annonce retirée : ${r.qte} ${plur(defObjet(r.objet).nom,r.qte)} revien${r.qte>1?"nent":"t"} au panier.`); } })));
   a.querySelectorAll("[data-offrir]").forEach(b=>b.addEventListener("click",()=>ouvrirCadeau(b.dataset.offrir)));
-  // le prix proposé suit la valeur du colporteur, un peu au-dessus
-  const o=$("mObjet"), q=$("mQte"), p=$("mPrix");
-  if(o && p){ const prop=()=>{ if(MARCHE.vente && MARCHE.vente.objet===o.value && MARCHE.vente.qte===+q.value && MARCHE.vente.prix) return; p.value = Math.max(1, Math.round(defObjet(o.value).valeur*(+q.value||1)*1.2)); MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; };
-    o.addEventListener("change",()=>{ MARCHE.vente=null; prop(); }); q.addEventListener("input",()=>{ MARCHE.vente=null; prop(); }); p.addEventListener("input",()=>{ MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; }); if(!p.value) prop(); }
+  // le prix proposé : le prix du village ; l'étiquette dit tout de suite si c'est bon marché ou cher
+  const o=$("mObjet"), q=$("mQte"), p=$("mPrix"), ct=$("mCote");
+  if(o && p){ const voirCote=()=>{ if(ct){ const c=cote(o.value, +q.value||1, +p.value||0); ct.textContent = `${c.nom} · prix du village : ${defObjet(o.value).valeur*(+q.value||1)} 🪙 · ${c.delai}`; ct.dataset.niveau = c.niveau; } };
+    const prop=()=>{ if(MARCHE.vente && MARCHE.vente.objet===o.value && MARCHE.vente.qte===+q.value && MARCHE.vente.prix){ voirCote(); return; } p.value = Math.max(1, defObjet(o.value).valeur*(+q.value||1)); MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; voirCote(); };
+    o.addEventListener("change",()=>{ MARCHE.vente=null; q.value = Math.min(99, etat.panier[o.value]||1); prop(); }); q.addEventListener("input",()=>{ MARCHE.vente=null; prop(); }); p.addEventListener("input",()=>{ MARCHE.vente={objet:o.value, qte:+q.value||1, prix:+p.value}; voirCote(); }); prop(); }
+  if(MARCHE.allerVendre && o){ MARCHE.allerVendre=false; setTimeout(()=>o.scrollIntoView({block:"center", behavior:"smooth"}), 50); }
+  a.querySelectorAll("[data-accepter]").forEach(b=>b.addEventListener("click",()=>{ const ann=MARCHE.annonces.find(x=>String(x.id)===b.dataset.accepter), o=ann&&offreDe(ann.id); if(ann && o){ b.disabled=true; venteVillageois(ann, o.pnj); } }));
+  a.querySelectorAll("[data-garder]").forEach(b=>b.addEventListener("click",()=>{ const v=(etat.ventes||{})[b.dataset.garder]; if(v){ v.offre=null; v.vu=Date.now(); } sauver(); dire("Tu la gardes. Elle reste au marché."); MARCHE.version++; cleCourrier=""; rendreCourrier(); majPastille(); }));
 }
 // un cadeau par jour et par ami (jour de Paris, comme le serveur), un seul objet
 const jourParis = d => new Date(d).toLocaleDateString("fr-CA", {timeZone:"Europe/Paris"});
@@ -868,10 +915,10 @@ function infoObjet(id){
   const veulent = VILLE.filter(v=>v.envies.some(e=>e[0]===b)).map(v=>v.nom);
   const lignes = [];
   if(d.rare){ lignes.push(["Une variante rare", `C'est une forme rare de ${p.nom.toLowerCase()}, comme il en existe chez les vrais jardiniers. Chaque récolte a environ ${Math.round((.04+fx().rare)*100)} % de chances de sortir ainsi ; l'amélioration « Œil de jardinier », à l'atelier, augmente cette chance.`]);
-    lignes.push(["Ce qu'elle vaut", `${d.valeur} 🪙 au colporteur, trois fois une ${p.nom.toLowerCase()} ordinaire. Offerte à un habitant, elle rapporte plus de lunes. Elle compte dans l'herbier du carnet. Une lettre qui demande des ${plur(p.nom,2)} l'accepte aussi, en dernier recours.`]); }
+    lignes.push(["Ce qu'elle vaut", `${d.valeur} 🪙 au prix du village, trois fois une ${p.nom.toLowerCase()} ordinaire. Offerte à un habitant, elle rapporte plus de lunes. Elle compte dans l'herbier du carnet. Une lettre qui demande des ${plur(p.nom,2)} l'accepte aussi, en dernier recours.`]); }
   else if(p) lignes.push(["D'où ça vient", `Récoltée au ${zoneDef(p.zone).nom.toLowerCase()} : ${duree(p.duree)} de pousse${besoin(p)==="lumiere"?" de jour":besoin(p)==="pluie"?", seulement les jours de pluie":""}. Vaut ${d.valeur} 🪙 au colporteur.`]);
-  else if(r) lignes.push(["Un plat de l'atelier", `${r.texte} Il faut ${listeObjets(r.ingr)}. Vaut ${d.valeur} 🪙 au colporteur.`]);
-  else if(b==="poire") lignes.push(["Du poirier", `Le poirier en laisse trois chaque aube. Vaut ${d.valeur} 🪙 au colporteur.`]);
+  else if(r) lignes.push(["Un plat de l'atelier", `${r.texte} Il faut ${listeObjets(r.ingr)}. Vaut ${d.valeur} 🪙 au prix du village.`]);
+  else if(b==="poire") lignes.push(["Du poirier", `Le poirier en laisse trois chaque aube. Vaut ${d.valeur} 🪙 au prix du village.`]);
   if(aiment.length) lignes.push(["Qui l'aime", `${aiment.join(", ")}.`.replace(/^./,x=>x.toUpperCase())]);
   if(veulent.length) lignes.push(["Qui en commande", veulent.join(", ")+"."]);
   ouvrirPanneau(`<h2>${d.nom}</h2><div class="corps"><div class="pied-visite">${ico(id,"grand")}</div>${lignes.map(([t,x])=>`<div class="regle"><b>${t}</b><small>${x}</small></div>`).join("")}</div>`);
@@ -891,7 +938,7 @@ function ouvrirVisite(l){
   const b=$("donnerVisite"); if(b) b.addEventListener("click", ()=>{ livrer(l.id); c.hidden=true; });
 }
 function majPastille(){
-  const v = etat.ville, n = CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]).length + v.lettres.filter(l=>!l.vue || aTout(l.items) || l.enPersonne).length + (MARCHE.nouveau?1:0);
+  const v = etat.ville, n = CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]).length + v.lettres.filter(l=>!l.vue || aTout(l.items) || l.enPersonne).length + (MARCHE.nouveau?1:0) + MARCHE.annonces.filter(a=>a.statut==="ouverte" && offreDe(a.id)).length;
   $("pastille").hidden = !n;
 }
 
@@ -1301,7 +1348,7 @@ function ouvrirPanneau(html){
 }
 const REGLES_TEXTE = [
   ["Le temps", "Tout se passe en temps réel, en minutes et en heures, même quand l'appli est fermée (douze heures de pousse au plus sont rattrapées au retour). Le vrai lever et le vrai coucher du soleil (calculés pour la région parisienne) font l'aube, le jour, le crépuscule et la nuit ; la date décide du temps du jour (clair, nuageux, brume, pluie ou tempête), avec des chances qui changent selon la saison. La pluie et la tempête arrosent toutes seules ; la tempête fait fuir presque tous les visiteurs."],
-  ["Deux monnaies", "L'or 🪙 vient du commerce : vendre au colporteur, livrer les lettres de Saint-Aubin, servir ceux qui montent te voir. Il paie les graines, les nouveaux pots et les constructions. Les lunes 🌙 viennent du lien : saluer les visiteurs, aider et gâter les habitants, trouver les secrets. Elles paient les recettes et les améliorations de l'atelier."],
+  ["Deux monnaies", "L'or 🪙 vient du commerce : vendre au marché (les villageois achètent ce qui est à bon prix), livrer les lettres de Saint-Aubin, servir ceux qui montent te voir. Il paie les graines, les nouveaux pots et les constructions. Les lunes 🌙 viennent du lien : saluer les visiteurs, aider et gâter les habitants, trouver les secrets. Elles paient les recettes et les améliorations de l'atelier."],
   ["Semer et récolter", "Choisis une graine dans la barre, touche une place libre. Une plante prête se récolte d'un toucher et part dans le panier (onglet Comptoir). Parfois, une récolte sort en variante rare : elle vaut trois fois plus et remplit l'herbier du carnet."],
   ["Le comptoir", "Le comptoir rassemble le courrier et le panier. Anselme, le facteur, monte chaque matin dès 8 h avec quelques lettres. Chacune demande des récoltes ou des plats, avec un délai ; tant que tu as tout dans le panier, le bouton Livrer s'allume. Une lettre qui expire s'en va sans pénalité. Certains jours, quelqu'un monte en personne : il attend sur la carte, près du sentier, quelques heures, et paie le double. Les livraisons font avancer l'histoire d'Odile."],
   ["La cuisine", "À l'atelier, une recette transforme des récoltes en plat, qui se vend plus cher et que la ville commande. Les recettes s'apprennent avec des lunes."],
@@ -1410,7 +1457,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.13.6";
+const VERSION_APP="0.14.0";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
