@@ -590,7 +590,7 @@ function rendreCourrier(){
   const prochain = v.facteurJour===jourDe(new Date()) ? "demain matin" : "ce matin, dès 8 h";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
   const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
-  if(sousComptoir==="marche"){ a.innerHTML = onglets + rendreEtals() + `<h3>Le marché des jardiniers</h3>` + rendreMarche(); brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
+  if(sousComptoir==="marche"){ const [haut, bas=""] = rendreMarche().split("<!--BAS-->"); a.innerHTML = onglets + `<h3>Le marché des jardiniers</h3>` + haut + rendreEtals() + bas; brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
   const chantier = Object.keys(MATIERES).filter(k=>(MATIERES[k].chantier||MATIERES[k].outil) && (etat.matieres[k]||0)>0);
   if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Le colporteur achète tout, au prix de base. Les lettres paient une fois et demie, les visites le double, et au marché, c'est toi qui fixes le prix. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
     (chantier.length ? `<h3>Pour bâtir</h3><div class="materiaux">${chantier.map(k=>`<span class="mat">${MATIERES[k].emoji} ${MATIERES[k].nom}${MATIERES[k].outil?"":` ×${etat.matieres[k]}`}</span>`).join("")}</div>` : "");
@@ -777,9 +777,9 @@ function rendreMarche(){
   return `<div class="carte-moi"><div><b>${MARCHE.moi.nom}</b><small>Ton code ami : <strong class="code">${MARCHE.moi.code}</strong>. Donne-le pour qu'on t'ajoute.</small></div><button class="choix" data-m="recharger">↻</button></div>
     <div class="ecoutes"><button class="choix" data-filtre="tous" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="tous"}">Tous (${ouvertes.length})</button><button class="choix" data-filtre="amis" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="amis"}">Amis (${ouvertes.filter(a=>amis.has(a.vendeur)).length})</button>${MARCHE.voir?`<button class="choix" data-filtre="tous" aria-pressed="true">${nomJoueur(MARCHE.voir)} ✕</button>`:""}</div>
     <div class="panier">${vues.length ? vues.map(carte).join("") : `<p class="intro">${MARCHE.voir ? `${nomJoueur(MARCHE.voir)} n'a rien en vente pour l'instant.` : MARCHE.filtre==="amis" ? (MARCHE.suivis.length ? "Tes amis n'ont rien en vente pour l'instant." : "Pas encore d'ami : ajoute un jardinier depuis la liste plus bas.") : "Personne ne vend rien pour l'instant."}</p>`}</div>
-    <h3>Vendre</h3>${formVente}
     ${mesOuvertes.length ? `<h3>Tes annonces</h3><div class="panier">${mesOuvertes.map(a=>{ const d=defObjet(a.objet); return `<div class="article">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${a.prix} 🪙 demandés</small></div><button data-retirer="${a.id}">Retirer</button></div>`; }).join("")}</div>` : ""}
-    <h3>Les jardiniers du marché</h3><p class="intro">Touche un nom pour ne voir que ses annonces. Entre amis, on peut s'offrir un objet par jour.</p>
+    <h3>Vendre</h3>${formVente}
+    <!--BAS--><h3>Les jardiniers du marché</h3><p class="intro">Touche un nom pour ne voir que ses annonces. Entre amis, on peut s'offrir un objet par jour.</p>
     ${amisListe || `<p class="intro">Personne d'autre n'est encore passé au marché.</p>`}
     <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Ou un code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div>
     <h3>Ta partie ailleurs</h3><p class="intro">Ta lisière est sauvegardée en ligne. Pour la reprendre sur un autre téléphone ou un ordinateur, entre-y cette clé : <strong class="code">${MARCHE.moi.cle}</strong>. Garde-la pour toi.</p>
@@ -1387,7 +1387,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.13.3";
+const VERSION_APP="0.13.4";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
