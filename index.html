@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La Lisière</title>
+<meta name="theme-color" content="#141a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="La Lisière">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="icon" href="icone-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="ciel"></canvas>
+<div class="app">
+  <header id="entete">
+    <button id="retour" class="retour" aria-label="Retour à la lisière" hidden>‹</button>
+    <h1 id="titre">La Lisière</h1>
+    <div class="stats">
+      <span id="roseeStat" hidden><span class="ico-rosee">💧</span> <b id="rosee">0</b>/<span id="roseeMax">3</span></span>
+      <span class="mats" id="matieres"></span>
+      <span class="stat-or"><span class="ico-or">🪙</span> <b id="or">0</b></span>
+      <span><span class="ico-lune">🌙</span> <b id="lune">0</b></span>
+    </div>
+  </header>
+
+  <main id="contenu">
+  <section id="ecran-village">
+    <div class="cielBande" id="bandeau" hidden><button id="luneBtn" aria-label="La lune"></button></div>
+    <p class="meteo" id="meteo"></p>
+    <div class="seuil" id="seuil" hidden></div>
+    <div class="village" id="village"></div>
+  </section>
+
+  <section id="ecran-zone" hidden>
+    <div class="sentier" id="sentier"><span id="sentierVide"></span><div class="herbe"></div></div>
+    <div class="parterre terre" id="parterre"></div>
+    <div class="graines" id="barre"></div>
+  </section>
+
+  <section id="ecran-atelier" hidden>
+    <div class="atelier" id="atelier"></div>
+  </section>
+
+  <section id="ecran-carnet" hidden>
+    <div class="atelier carnet" id="carnet"></div>
+  </section>
+
+  <section id="ecran-courrier" hidden>
+    <div class="atelier" id="courrier"></div>
+  </section>
+  </main>
+
+  <div class="msg" id="msg" aria-live="polite"></div>
+  <nav class="bas" id="bas" aria-label="Menu">
+    <button data-aller="village" aria-current="page"><span>🏡</span>Lisière</button>
+    <button data-aller="atelier"><span>🔨</span>Atelier</button>
+    <button data-aller="courrier" id="btnCourrier"><span>🧺</span>Comptoir<i class="pastille" id="pastille" hidden></i></button>
+    <button data-aller="carnet" id="btnCarnet"><span>📖</span>Carnet</button>
+  </nav>
+</div>
+<div class="panneau" id="panneau" hidden></div>
+<script src="config.js"></script>
+<script src="reseau.js"></script>
+<script src="contenu.js"></script>
+<script src="moteur.js"></script>
+</body>
+</html>
