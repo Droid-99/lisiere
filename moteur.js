@@ -687,7 +687,7 @@ function htmlPostes(){
 function rendreEtals(){
   return htmlPostes() + `<h3>Les étals de Saint-Aubin</h3><p class="intro">Matériaux et outils pour bâtir. Chacun vient à ses jours, avec un stock limité ; les prix bougent un peu. À force d'acheter chez quelqu'un, il finit par proposer son apprenti.</p>` +
     ETALS.map(e=>{
-      const tete = `<div class="tete"><span class="big">${e.emoji}</span><div><b>${e.nom}</b><small>${e.metier} · ${joursTxt(e)}</small></div></div>`;
+      const tete = `<div class="tete">${portrait(e, true)}<div><b>${e.nom}</b><small>${e.metier} · ${joursTxt(e)}</small></div></div>`;
       let prop = "";
       if(e.apprenti && !posteDe(e.id) && fidelite(e) >= e.fidelite){
         if(!(etat.refusAbo||{})[e.id]) prop = `<div class="abo propose"><p class="parole">« ${e.apprenti.proposition} »</p><p class="intro">${e.apprenti.nom} : ${parHeure(e.apprenti.niveaux[0].par, e.apprenti.objet)} pour commencer, sans rien payer ensuite. Améliorable.</p>
@@ -904,7 +904,7 @@ function construireCarte(){
   v.querySelector("#terres").addEventListener("click", ()=>allerA("potager")); v.querySelector("#terresClic").addEventListener("click", ()=>allerA("potager"));
   v.querySelector("#etang").addEventListener("click", versMare); v.querySelector("#etangClic").addEventListener("click", versMare);
   if(!IMG) v.querySelector("#zonesClic").setAttribute("display","none");
-  if(IMG){ v.querySelector("#carteRepli").setAttribute("display","none"); v.querySelectorAll(".slot").forEach(g=>{ const b=BATIMENTS.find(x=>x.id===g.dataset.b); if(b.ix!=null) g.setAttribute("transform",`translate(${w*b.ix/100} ${h*b.iy/100})`); }); }
+  if(IMG){ v.querySelector("#carteRepli").setAttribute("display","none"); v.querySelectorAll(".slot[data-b]").forEach(g=>{ const b=BATIMENTS.find(x=>x.id===g.dataset.b); if(b.ix!=null) g.setAttribute("transform",`translate(${w*b.ix/100} ${h*b.iy/100})`); }); }
   v.querySelectorAll(".slot[data-b]").forEach(g=>g.addEventListener("click", ()=>ouvrirBatiment(g.dataset.b)));
   v.querySelectorAll(".slot[data-p]").forEach(g=>g.addEventListener("click", ()=>ouvrirPoste(g.dataset.p)));
   v.querySelector("#passant").addEventListener("click", ()=>{ const l=etat.ville.lettres.find(x=>x.enPersonne); if(l) ouvrirVisite(l); });
@@ -1365,7 +1365,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.13.0";
+const VERSION_APP="0.13.1";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
