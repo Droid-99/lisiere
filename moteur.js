@@ -590,7 +590,7 @@ function rendreCourrier(){
   const prochain = v.facteurJour===jourDe(new Date()) ? "demain matin" : "ce matin, dès 8 h";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
   const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
-  if(sousComptoir==="marche"){ const [haut, bas=""] = rendreMarche().split("<!--BAS-->"); a.innerHTML = onglets + `<h3>Le marché des jardiniers</h3>` + haut + rendreEtals() + bas; brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
+  if(sousComptoir==="marche"){ const m = rendreMarche(), [haut, bas] = m.includes("<!--BAS-->") ? m.split("<!--BAS-->") : ["", `<h3>Le marché des jardiniers</h3>` + m]; a.innerHTML = onglets + haut + rendreEtals() + bas; a.querySelectorAll("details.repli").forEach((d,i)=>{ if(i===0) d.addEventListener("toggle",()=>{ MARCHE.ouvert = d.open; }); }); brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
   const chantier = Object.keys(MATIERES).filter(k=>(MATIERES[k].chantier||MATIERES[k].outil) && (etat.matieres[k]||0)>0);
   if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Le colporteur achète tout, au prix de base. Les lettres paient une fois et demie, les visites le double, et au marché, c'est toi qui fixes le prix. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
     (chantier.length ? `<h3>Pour bâtir</h3><div class="materiaux">${chantier.map(k=>`<span class="mat">${MATIERES[k].emoji} ${MATIERES[k].nom}${MATIERES[k].outil?"":` ×${etat.matieres[k]}`}</span>`).join("")}</div>` : "");
@@ -757,7 +757,8 @@ function rendreMarche(){
   const vues = MARCHE.voir ? ouvertes.filter(a=>a.vendeur===MARCHE.voir) : MARCHE.filtre==="amis" ? ouvertes.filter(a=>amis.has(a.vendeur)) : ouvertes;
   const mesOuvertes = MARCHE.annonces.filter(a=>a.vendeur===moi && a.statut==="ouverte");
   const carte = a => { const d=defObjet(a.objet), ami=amis.has(a.vendeur), unite=Math.round(a.prix/a.qte);
-    return `<div class="article ${d.rare?"rare":""}">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${nomJoueur(a.vendeur)}${ami?" · ami":""} · ${unite} 🪙 pièce (colporteur : ${d.valeur})</small></div><button data-acheter="${a.id}" ${etat.or>=a.prix?"":"disabled"}>${a.prix} 🪙</button></div>`; };
+    return `<div class="article ${d.rare?"rare":""}">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${nomJoueur(a.vendeur)}${ami?" · ami":""} · colporteur ${d.valeur*a.qte} 🪙</small></div><button data-acheter="${a.id}" ${etat.or>=a.prix?"":"disabled"}>${a.prix} 🪙</button></div>`; };
+  const mienne = a => { const d=defObjet(a.objet); return `<div class="article mienne">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>ton annonce</small></div><button data-retirer="${a.id}">Retirer ${a.prix} 🪙</button></div>`; };
   const panierCles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0 && objetValide(k));
   const v = MARCHE.vente;
   const formVente = panierCles.length ? `<div class="formulaire vente">
@@ -765,7 +766,7 @@ function rendreMarche(){
       <label>Quantité <input id="mQte" type="number" min="1" max="99" value="${v?v.qte:1}"></label>
       <label>Prix total 🪙 <input id="mPrix" type="number" min="1" max="99999" value="${v?v.prix:""}"></label>
       <button class="choix" data-m="publier" ${mesOuvertes.length>=10?"disabled":""}>Mettre en vente</button></div>
-      <p class="intro">${mesOuvertes.length}/10 annonces. L'objet quitte ton panier tant qu'il est en vente ; tu le récupères si tu retires l'annonce.</p>` : `<p class="intro">Ton panier est vide : récolte ou cuisine d'abord.</p>`;
+      <p class="intro">${mesOuvertes.length}/10 annonces. L'objet quitte ton panier tant qu'il est en vente ; tu le récupères si tu retires l'annonce.</p>` : `<p class="intro">Ton panier est vide.</p>`;
   // les jardiniers : ceux passés récemment, plus les amis et les vendeurs du moment ; amis d'abord
   const nAnn = id => ouvertes.filter(a=>a.vendeur===id).length;
   const ids = [...new Set([...MARCHE.suivis, ...ouvertes.map(a=>a.vendeur), ...MARCHE.jardiniers.map(j=>j.uid)])].filter(id=>id!==moi);
@@ -774,16 +775,20 @@ function rendreMarche(){
     return `<div class="ligne jardinier ${MARCHE.voir===id?"choisi":""}"><button class="qui" data-voir="${id}"><b>${nomJoueur(id)}${ami?" · ami":""}</b><small>${n?`${n} annonce${n>1?"s":""}`:"rien en vente"}${j.sauve_le?` · vu ${depuis(j.sauve_le)}`:""}</small></button>`+
       (ami ? `<button data-offrir="${id}" ${deja?"disabled":""}>${deja?"Offert aujourd'hui":"Offrir"}</button>` : `<button data-ajout="${id}">Ajouter en ami</button>`)+`</div>`; };
   const amisListe = ids.slice(0,30).map(ligne).join("");
-  return `<div class="carte-moi"><div><b>${MARCHE.moi.nom}</b><small>Ton code ami : <strong class="code">${MARCHE.moi.code}</strong>. Donne-le pour qu'on t'ajoute.</small></div><button class="choix" data-m="recharger">↻</button></div>
-    <div class="ecoutes"><button class="choix" data-filtre="tous" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="tous"}">Tous (${ouvertes.length})</button><button class="choix" data-filtre="amis" aria-pressed="${!MARCHE.voir && MARCHE.filtre==="amis"}">Amis (${ouvertes.filter(a=>amis.has(a.vendeur)).length})</button>${MARCHE.voir?`<button class="choix" data-filtre="tous" aria-pressed="true">${nomJoueur(MARCHE.voir)} ✕</button>`:""}</div>
-    <div class="panier">${vues.length ? vues.map(carte).join("") : `<p class="intro">${MARCHE.voir ? `${nomJoueur(MARCHE.voir)} n'a rien en vente pour l'instant.` : MARCHE.filtre==="amis" ? (MARCHE.suivis.length ? "Tes amis n'ont rien en vente pour l'instant." : "Pas encore d'ami : ajoute un jardinier depuis la liste plus bas.") : "Personne ne vend rien pour l'instant."}</p>`}</div>
-    ${mesOuvertes.length ? `<h3>Tes annonces</h3><div class="panier">${mesOuvertes.map(a=>{ const d=defObjet(a.objet); return `<div class="article">${ico(a.objet,"big")}<div><b>${d.nom} ×${a.qte}</b><small>${a.prix} 🪙 demandés</small></div><button data-retirer="${a.id}">Retirer</button></div>`; }).join("")}</div>` : ""}
-    <h3>Vendre</h3>${formVente}
-    <!--BAS--><h3>Les jardiniers du marché</h3><p class="intro">Touche un nom pour ne voir que ses annonces. Entre amis, on peut s'offrir un objet par jour.</p>
+  // en haut : seulement les annonces (les miennes et celles des autres), le reste tout en bas
+  const nAmis = ouvertes.filter(a=>amis.has(a.vendeur)).length;
+  const puces = (ouvertes.length || MARCHE.voir) ? `<div class="ecoutes mini">${MARCHE.voir ? `<button class="choix" data-filtre="tous" aria-pressed="true">${nomJoueur(MARCHE.voir)} ✕</button>` : `<button class="choix" data-filtre="tous" aria-pressed="${MARCHE.filtre==="tous"}">Tous ${ouvertes.length}</button>${MARCHE.suivis.length?`<button class="choix" data-filtre="amis" aria-pressed="${MARCHE.filtre==="amis"}">Amis ${nAmis}</button>`:""}`}</div>` : "";
+  const vide = MARCHE.voir ? `${nomJoueur(MARCHE.voir)} n'a rien en vente.` : MARCHE.filtre==="amis" ? "Tes amis n'ont rien en vente." : "Aucune annonce pour l'instant. On vend tout en bas.";
+  const haut = `<div class="marche-tete"><h3>Le marché des jardiniers</h3><button class="rond" data-m="recharger" aria-label="Actualiser">↻</button></div>${puces}
+    <div class="panier marche">${vues.map(carte).join("")}${mesOuvertes.map(mienne).join("")}${(vues.length||mesOuvertes.length) ? "" : `<p class="intro">${vide}</p>`}</div>`;
+  const bas = `<h3>Vendre au marché</h3>${formVente}
+    <details class="repli" ${MARCHE.ouvert?"open":""}><summary>Jardiniers, amis et cadeaux</summary>
+    <p class="intro">Tu es <b>${MARCHE.moi.nom}</b>, code ami <strong class="code">${MARCHE.moi.code}</strong>. Touche un nom pour ne voir que ses annonces. Entre amis, on peut s'offrir un objet par jour.</p>
     ${amisListe || `<p class="intro">Personne d'autre n'est encore passé au marché.</p>`}
-    <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Ou un code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div>
-    <h3>Ta partie ailleurs</h3><p class="intro">Ta lisière est sauvegardée en ligne. Pour la reprendre sur un autre téléphone ou un ordinateur, entre-y cette clé : <strong class="code">${MARCHE.moi.cle}</strong>. Garde-la pour toi.</p>
-    <div class="formulaire"><input id="mCle" maxlength="20" placeholder="Clé d'une autre partie"><button class="choix" data-m="recuperer">Reprendre</button></div>`;
+    <div class="formulaire"><input id="mCode" maxlength="8" placeholder="Code ami" autocapitalize="characters"><button class="choix" data-m="ami">Ajouter</button></div></details>
+    <details class="repli"><summary>Ta partie ailleurs</summary><p class="intro">Ta lisière est sauvegardée en ligne. Pour la reprendre sur un autre téléphone ou un ordinateur, entre-y cette clé : <strong class="code">${MARCHE.moi.cle}</strong>. Garde-la pour toi.</p>
+    <div class="formulaire"><input id="mCle" maxlength="20" placeholder="Clé d'une autre partie"><button class="choix" data-m="recuperer">Reprendre</button></div></details>`;
+  return haut + "<!--BAS-->" + bas;
 }
 function brancherMarche(a){
   const action = async (fn, ok) => { try{ const r = await fn(); if(ok) ok(r); }catch(e){ dire(`Le marché n'a pas pu : ${e.message}.`); } chargerMarche(); };
@@ -1387,7 +1392,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.13.4";
+const VERSION_APP="0.13.5";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

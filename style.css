@@ -370,3 +370,14 @@ body.illustre .sentier .habitant img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)
 .ligne.jardinier .qui b{display:block}
 .ligne.jardinier.choisi .qui{background:var(--soil2)}
 .ligne button:disabled{opacity:.5;cursor:default}
+.marche-tete{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.marche-tete .rond{border:0;border-radius:999px;width:34px;height:34px;background:var(--soil2);color:var(--fg);font-weight:700;cursor:pointer}
+.ecoutes.mini{margin:0 0 6px}
+.ecoutes.mini .choix{padding:5px 12px;font-size:.85rem}
+.panier.marche .article{padding:5px 10px}
+.panier.marche .article span.big{width:2rem;height:2rem;font-size:1.3rem}
+.panier.marche .article span.big img{width:2rem;height:2rem}
+.panier.marche .article small{font-size:.78rem}
+.article.mienne{background:var(--soil2)}
+details.repli{margin-top:12px;border-top:1px solid #4a3f61;padding-top:8px}
+details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6px 0}
