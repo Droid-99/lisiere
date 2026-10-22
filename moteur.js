@@ -326,7 +326,7 @@ function majPot(i){
     if(soif) cls+=" soif"; if(attend) cls+=" attend";
     cle = `${pot.plante}${stade}${soif?"s":""}${attend?"a":""}${av>=1?"p":""}${pct}`;
     if(pot.mystere && av<1){ cle = `m${stade}${soif?"s":""}${attend?"a":""}`;
-      html = `<span class="mystere">${["🌰","🌱","🌿","🪴"][stade]}</span>` + (soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">Graine mystère · ?</span>`;
+      html = (IMG ? `<img class="plante" src="img/plante-mystere-${stade+1}.webp" alt="" draggable="false" onerror="this.outerHTML='<span class=&quot;mystere&quot;>${["🌰","🌱","🌿","🪴"][stade]}</span>'">` : `<span class="mystere">${["🌰","🌱","🌿","🪴"][stade]}</span>`) + (soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">Graine mystère · ?</span>`;
       label = `Graine mystère${soif?", a soif":""}`; }
     else html = svgPlante(p,av) + (av>=1?`<span class="badge pret">prêt</span>`:soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">${p.nom} · ${pct} %</span>`;
     if(!(pot.mystere && av<1)) label = `${p.nom}, ${pct} %${soif?", a soif":""}${attend?", attend le jour":""}${av>=1?", prêt à récolter":""}`;
@@ -1192,7 +1192,7 @@ function rendreVillage(){
   for(const b of BATIMENTS){
     const g = $("village").querySelector(`.slot[data-b="${b.id}"]`); if(!g) continue;
     const fini = bati(b.id), enCours = ch && ch.id===b.id;
-    const T = IMG ? 300 : 160, bimg = n => `<image href="img/${n}.webp" x="${-T/2}" y="${-T*.68}" width="${T}" height="${T}"></image>`;
+    const T = IMG ? 300 : 160, bimg = n => `<image href="img/${n}.webp" x="${-T/2}" y="${-T*.68}" width="${T}" height="${T}" onerror="this.outerHTML='<text y=&quot;0&quot; font-size=&quot;120&quot; text-anchor=&quot;middle&quot;>${b.emoji}</text>'"></image>`;
     if(fini) g.innerHTML = IMG ? bimg(`bat-${b.id}`) : dessinBatiment(b,true);
     else if(enCours){ const p=Math.min(1,(now-ch.debut)/(ch.fin-ch.debut)); g.innerHTML = (IMG ? bimg(`bat-${b.id}-chantier`) : dessinBatiment(b,false)) + `<rect x="-40" y="${T*.32}" width="80" height="8" rx="4" fill="#3a3150"/><rect x="-40" y="${T*.32}" width="${80*p}" height="8" rx="4" fill="#f4d58a"/>`; }
     else g.innerHTML = `<ellipse rx="40" ry="18" fill="#55496b" opacity="${IMG?.3:.6}"/><ellipse rx="28" ry="11" fill="${IMG?"rgba(58,49,80,.5)":"#3a3150"}" stroke="#e8dcc0" stroke-width="3" stroke-dasharray="7 6"/>`;
@@ -1223,6 +1223,7 @@ function rendreVillage(){
 }
 function rendreSeuil(){
   const s = $("seuil"); const plein = fx().seuil;
+  if(!plein){ if(!s.hidden) s.hidden = true; return; }   // sans panneau d'affichage, la carte reste nue
   const ch = etat.village.chantier, lignes=[];
   if(plein) for(const z of ZONES){ const pots=etat.zones[z.id].pots, prets=pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length, soif=pots.filter(p=>p.plante && besoin(PLANTES[p.plante])==="rosee" && p.eau<=0 && p.age<PLANTES[p.plante].duree).length, v=etat.zones[z.id].visiteur;
     const part=[]; if(prets) part.push(`${prets} à récolter`); if(soif) part.push(`${soif} qui ${soif>1?"ont":"a"} soif`); if(v){ const d=VISITEURS.find(x=>x.id===v.id); if(d) part.push(`${d.nom} est là`); }
@@ -1734,7 +1735,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.17.4";
+const VERSION_APP="0.17.5";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
