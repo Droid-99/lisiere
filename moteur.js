@@ -509,19 +509,25 @@ function nouvelleLettre(pnj, enPersonne){
   let pool = pnj.envies.filter(([id])=>obtenable(id));
   if(enPersonne){ const dans = pool.filter(([id])=>qte(id)>0); pool = dans.length ? dans : pool.filter(([id])=>PLANTES[id] && PLANTES[id].duree<=2400); }
   if(!pool.length) pool = [["radis",3,5]];
+  // ne pas redemander ce que cette personne a demandé récemment, s'il y a autre chose
+  if(!enPersonne){ const deja = new Set((etat.ville.recentes||[]).filter(r=>r.pnj===pnj.id).flatMap(r=>r.k)); const neuf = pool.filter(([id])=>!deja.has(id)); if(neuf.length) pool = neuf; }
   const items = {}, copie = [...pool], n = !enPersonne && copie.length>1 && Math.random()<.35 ? 2 : 1;
   for(let i=0;i<n;i++){ const [id,a,b] = copie.splice(Math.floor(Math.random()*copie.length),1)[0];
     items[id] = enPersonne ? Math.max(1, Math.min(a, qte(id)||a)) : a+Math.floor(Math.random()*(b-a+1)); }
   const val = Object.keys(items).reduce((t,k)=>t+defObjet(k).valeur*items[k],0);
   const long = Object.keys(items).some(k=>{ const p=PLANTES[k]; const r=RECETTES.find(x=>x.id===k); return (p && p.duree>=18000) || (r && Object.keys(r.ingr).some(i=>PLANTES[i] && PLANTES[i].duree>=18000)); });
   const heures = enPersonne ? 4 : long ? 72 : 48;
+  if(!enPersonne){ const v=etat.ville; v.recentes = [...(v.recentes||[]), {pnj:pnj.id, k:Object.keys(items)}].slice(-10); }
   return {id:++etat.ville.nid, pnj:pnj.id, items, or:Math.ceil(val*(enPersonne?2:1.5)+4), lunes:Math.random()<.3?2:0,
     fin:Date.now()+heures*3600000, raison:hasard(pnj.raisons), parole:enPersonne?hasard(pnj.paroles):"", enPersonne:!!enPersonne};
 }
-function choisirPnj(dispo){
-  const ok = dispo.filter(p=>p.envies.some(([id])=>obtenable(id))); if(!ok.length) return pnjDe("margot");
+function choisirPnj(dispo, exclus=[]){
+  let ok = dispo.filter(p=>p.envies.some(([id])=>obtenable(id))); if(!ok.length) return pnjDe("margot");
+  // éviter ceux qui viennent d'écrire (cette tournée, puis les dernières lettres), tant qu'il reste quelqu'un d'autre
+  const recents = (etat.ville.recentes||[]).slice(-3).map(r=>r.pnj);
+  for(const sauf of [exclus, recents]){ const reste = ok.filter(p=>!sauf.includes(p.id)); if(reste.length) ok = reste; }
   const f = ok.find(p=>p.id==="enfants"); const autres = ok.filter(p=>p.id!=="enfants");
-  return f && (Math.random()<.45 || !autres.length) ? f : hasard(autres); }
+  return f && (Math.random()<.25 || !autres.length) ? f : hasard(autres); }
 function appliquerDon(don){
   const t=[];
   if(don.or){ gagnerOr(don.or); t.push(`+${don.or} 🪙`); }
@@ -544,9 +550,18 @@ function majCourrier(dt=1){
   // Anselme passe le matin, dès 8 h (ou tout de suite la première fois)
   if(v.facteurJour!==j && (d.getHours()>=8 || !v.facteurJour)){
     v.facteurJour = j;
-    const dispo = pnjDispo(), place = 6 - v.lettres.filter(l=>!l.enPersonne).length, nb = Math.max(0, Math.min(2+fx().lettres, place));
-    for(let i=0;i<nb;i++) v.lettres.push(nouvelleLettre(choisirPnj(dispo), false));
+    const dispo = pnjDispo(), place = 7 - v.lettres.filter(l=>!l.enPersonne).length, nb = Math.max(0, Math.min(3+fx().lettres, place)), qui = [];
+    for(let i=0;i<nb;i++){ const p = choisirPnj(dispo, qui); qui.push(p.id); v.lettres.push(nouvelleLettre(p, false)); }
     if(nb) annoncer(`Anselme est passé : ${nb} lettre${nb>1?"s":""} de Saint-Aubin.`);
+    v.matin3 = j;
+  }
+  // tournée du matin passée avant la mise à jour (deux lettres) : une troisième, une seule fois
+  if(v.facteurJour===j && v.matin3!==j){ v.matin3 = j; const ce = v.lettres.filter(l=>!l.enPersonne).map(l=>l.pnj);
+    if(ce.length<7){ v.lettres.push(nouvelleLettre(choisirPnj(pnjDispo(), ce), false)); annoncer(`Anselme avait oublié une lettre dans sa sacoche.`); } }
+  // deuxième tournée l'après-midi, dès 15 h : une lettre de plus
+  if(v.facteurJour===j && v.facteurSoir!==j && d.getHours()>=15){
+    v.facteurSoir = j; const place = 7 - v.lettres.filter(l=>!l.enPersonne).length;
+    if(place>0){ const ce = v.lettres.filter(l=>!l.enPersonne).map(l=>l.pnj); v.lettres.push(nouvelleLettre(choisirPnj(pnjDispo(), ce), false)); annoncer(`Anselme repasse en fin de journée : une lettre de plus.`); }
   }
   // une visite en personne, au plus une par jour, entre 10 h et 18 h
   if(v.visiteJour!==j && d.getHours()>=10 && d.getHours()<18 && !v.lettres.some(l=>l.enPersonne) && Math.random() < Math.min(dt,2)/7200){
@@ -587,7 +602,7 @@ function rendreCourrier(){
   const panier = cles.length ? cles.map(k=>{ const d=defObjet(k), n=etat.panier[k];
     return `<div class="article ${d.rare?"rare":""}" data-info="${k}">${ico(k,"big")}<div><b>${d.nom} ×${n}</b><small>${d.valeur} 🪙 pièce${demandes[base(k)]?" · <em>demandé</em>":""}${d.rare?" · variante rare":""}</small></div><button data-vendre="${k}" data-n="1">Vendre 1</button>${n>1?`<button data-vendre="${k}" data-n="${n}">Tout · ${d.valeur*n}</button>`:""}</div>`; }).join("")
     : `<p class="intro">Vide. Ce que tu récoltes et ce que tu cuisines arrive ici.</p>`;
-  const prochain = v.facteurJour===jourDe(new Date()) ? "demain matin" : "ce matin, dès 8 h";
+  const auj = jourDe(new Date()), prochain = v.facteurJour!==auj ? "ce matin, dès 8 h" : v.facteurSoir!==auj ? "vers 15 h" : "demain matin";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
   const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché`], ...(AMIS && RESEAU.actif ? [["amis",`💌 Amis${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]] : [])].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
   if(sousComptoir==="amis"){ a.innerHTML = onglets + rendreAmis(); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); if(sousComptoir!=="courrier"&&sousComptoir!=="panier") chargerMarche(); })); return; }
@@ -1542,7 +1557,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.3";
+const VERSION_APP="0.15.4";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
