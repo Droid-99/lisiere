@@ -1247,7 +1247,9 @@ const LIVRES = CONTENU.LIVRES, DEFAUTS = CONTENU.DEFAUTS_LIVRE, AMC = CONTENU.AM
 const cab = () => (etat.cabane = etat.cabane || {livres:{}, travaux:[], ameli:{}, lus:{}});
 const amC = id => !!(etat.cabane && etat.cabane.ameli[id]);
 const livreDef = id => LIVRES.find(l=>l.id===id);
-const maxTravaux = () => amC("etabli2") ? 2 : 1;   // par atelier (couture, séchoir, presse, bassine)
+// couture, presse et bassine demandent tes mains : une seule à la fois ; le séchoir travaille seul (trois places avec le grand séchoir)
+const placeLibre = k => { const c = cab(); if(DEFAUTS[k].passif) return c.travaux.filter(t=>t.defaut===k).length < (amC("etabli2") ? 3 : 1); return !c.travaux.some(t=>!DEFAUTS[t.defaut].passif); };
+const mainsPrises = () => { const t = cab().travaux.find(x=>!DEFAUTS[x.defaut].passif); return t ? DEFAUTS[t.defaut] : null; };
 const aReparer = () => Object.keys(cab().livres).filter(id=>cab().livres[id].defauts.length);
 function nomBesoin(k){ return MATIERES[k] ? MATIERES[k].nom.toLowerCase() : defObjet(k).nom.toLowerCase(); }
 function besoinTxt(b){ const k=Object.keys(b); return k.length ? k.map(x=>`${b[x]} ${plur(nomBesoin(x), b[x])}`).join(", ") : "rien que du temps"; }
@@ -1296,7 +1298,7 @@ function montrerLivre(l, par){
 }
 function lancerReparation(id, def){
   const c = cab(), l = c.livres[id], D = DEFAUTS[def]; if(!l || !D || !l.defauts.includes(def)) return;
-  if(c.travaux.filter(t=>t.defaut===def).length>=maxTravaux()){ dire(`${D.atelier} est occupé${D.atelier.startsWith("La ")?"e":""}.`); return; }
+  if(!placeLibre(def)){ const m = mainsPrises(); dire(D.passif ? "Le séchoir est plein." : `Tu as déjà les mains prises : ${m.atelier.charAt(0).toLowerCase()+m.atelier.slice(1)}. Le séchoir, lui, est libre.`); return; }
   if(c.travaux.some(t=>t.livre===id)){ dire("Ce livre est déjà à un atelier."); return; }
   for(const k in D.besoin) if(qte(k)<D.besoin[k]){ dire(`Il te faut ${besoinTxt(D.besoin)}.`); return; }
   for(const k in D.besoin) retirer(k, D.besoin[k]);
@@ -1333,18 +1335,19 @@ function ouvrirCabane(){
     const L = c.livres[t.livre], n = Math.max(L.total||0, L.defauts.length), k = n - L.defauts.length + 1;
     return `<div class="article">${couv(d)}<div><b>${d.titre}</b><small>Étape ${k}/${n} · ${D.geste} · ${repos?"l'établi se repose jusqu'au matin":"encore "+duree(Math.max(60,t.reste/v))}</small><span class="jauge"><i style="width:${pc}%"></i></span></div></div>`; };
   const ateliers = Object.keys(DEFAUTS).map(k=>{ const D=DEFAUTS[k], ts=c.travaux.filter(t=>t.defaut===k);
-    return `<div class="atelierReliure"><b>${D.emoji} ${D.atelier}</b>${ts.length ? ts.map(carteTravail).join("") : `<small>Libre.</small>`}</div>`; }).join("");
-  const libre = k => c.travaux.filter(t=>t.defaut===k).length < maxTravaux();
+    const m = mainsPrises(), attente = !D.passif && m && !ts.length ? `<small>Attend : tu travailles à ${m.atelier.charAt(0).toLowerCase()+m.atelier.slice(1)}.</small>` : `<small>Libre.${D.passif?" Il travaille seul, même pendant que tu fais autre chose.":""}</small>`;
+    return `<div class="atelierReliure"><b>${D.emoji} ${D.atelier}</b>${ts.length ? ts.map(carteTravail).join("") : attente}</div>`; }).join("");
+  const libre = k => placeLibre(k);
   const enAttente = aReparer().filter(id=>!c.travaux.some(t=>t.livre===id));   // un livre sur l'établi n'est plus « à réparer »
   const abimes = enAttente.map(id=>{ const d=livreDef(id), l=c.livres[id], enCours=c.travaux.some(t=>t.livre===id);
     return `<div class="livreAbime">${couv(d)}<div><b>${d.titre}</b><small>${d.genre}${enCours?" · sur l'établi":""}</small>${l.defauts.map(k=>{ const D=DEFAUTS[k], ok=Object.keys(D.besoin).every(x=>qte(x)>=D.besoin[x]);
-      return `<div class="defaut"><span><b>${D.nom}</b><small>${D.emoji} ${D.geste} · ${besoinTxt(D.besoin)} · ${duree(D.duree/(amC("presse")?2:1))}</small></span><button data-reparer="${id}" data-def="${k}" ${(!libre(k)||enCours||!ok)?"disabled":""}>${libre(k)?"Réparer":"Occupé"}</button></div>`; }).join("")}</div></div>`; }).join("");
+      return `<div class="defaut"><span><b>${D.nom}</b><small>${D.emoji} ${D.geste} · ${besoinTxt(D.besoin)} · ${duree(D.duree/(amC("presse")?2:1))}</small></span><button data-reparer="${id}" data-def="${k}" ${(!libre(k)||enCours||!ok)?"disabled":""}>${libre(k)?"Réparer":DEFAUTS[k].passif?"Plein":"Mains prises"}</button></div>`; }).join("")}</div></div>`; }).join("");
   const repares = LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length);
   const dos = LIVRES.map(l=>{ const x=c.livres[l.id]; if(x && !x.defauts.length) return `<button class="dos" style="--c:${l.couleur}" data-lire="${l.id}" aria-label="${l.titre}"><span>${l.titre}</span>${c.lus[l.id]?"":"<i></i>"}</button>`; return `<span class="dos vide"></span>`; });
   const etagere = [0,10].map(i=>`<div class="etagere">${dos.slice(i,i+10).join("")}</div>`).join("");
   const ameli = AMC.map(a=>amC(a.id) ? `<div class="regle"><b>✓ ${a.nom}</b><small>${a.effet}</small></div>` : `<div class="regle"><b>${a.nom}</b><small>${a.effet}</small><div class="besoins">${besoinsBatiment(a)}</div><button class="choix" data-ameli="${a.id}" ${manqueBatiment(a).length?"disabled":""}>Installer</button></div>`).join("");
   const html = `<h2>🛖 La cabane</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
-    <p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare.</p>
+    <p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare. Coudre, coller, nettoyer : une chose à la fois. Le séchoir, lui, travaille pendant ce temps.</p>
     <h3>À réparer <small>${enAttente.length}</small></h3>${abimes || `<p class="intro">${c.travaux.length ? "Rien d'autre à réparer." : "Rien à réparer."} Salue les visiteurs : il arrive qu'ils laissent un livre sur le seuil.</p>`}
     <h3>Les ateliers</h3>${repos && c.travaux.length ? `<p class="intro">La nuit, les ateliers se reposent. Une lampe de travail permettrait de continuer.</p>` : ""}${ateliers}
     <h3>L'étagère <small>${repares.length}/${LIVRES.length}</small></h3>${etagere}
@@ -1697,7 +1700,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.6";
+const VERSION_APP="0.16.7";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

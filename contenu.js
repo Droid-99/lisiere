@@ -547,12 +547,13 @@ CONTENU.BATIMENTS = [
 */
 /* ---------- LA RELIURE (dans la cabane) ----------
    Les animaux rapportent parfois un livre abandonné dans le bois (souvent un livre d'Odile, dispersé du temps de sa bâche).
-   Chaque livre arrive avec un à trois défauts ; chaque défaut se répare à l'établi, avec un peu de récolte et du temps.
+   Chaque livre arrive avec un à trois défauts ; chaque défaut se répare à son atelier, avec un peu de récolte et du temps.
+   Couture, presse et bassine demandent tes mains : une seule à la fois. Le séchoir, lui, travaille seul, en même temps.
    Réparé, le livre rejoint l'étagère et se lit ; certains cachent un don (recette, graine, lunes).
    suite : les carnets d'Odile arrivent dans l'ordre. */
 CONTENU.DEFAUTS_LIVRE = {
   decousu:    {atelier:"La table de couture", emoji:"🧵", nom:"Reliure décousue", geste:"Recoudre au fil de roseau", besoin:{roseau:2}, duree:2*3600},
-  mouille:    {atelier:"Le séchoir, près de la cheminée", emoji:"🔥", nom:"Pages gondolées par l'eau", geste:"Faire sécher près de la cheminée", besoin:{}, duree:4*3600},
+  mouille:    {atelier:"Le séchoir, près de la cheminée", emoji:"🔥", passif:true, nom:"Pages gondolées par l'eau", geste:"Faire sécher près de la cheminée", besoin:{}, duree:4*3600},
   couverture: {atelier:"La presse à coller", emoji:"🗜️", nom:"Couverture arrachée", geste:"Recoller sur de fines planches", besoin:{bois:1, miel:1}, duree:3*3600},
   tache:      {atelier:"La bassine de lavande", emoji:"🪻", nom:"Pages tachées", geste:"Nettoyer à l'eau de lavande", besoin:{lavande:1}, duree:3600},
 };
@@ -560,7 +561,7 @@ CONTENU.AMELIO_CABANE = [
   {id:"etageres", nom:"Des étagères", prix:120, materiaux:{bois:6, clous:4}, outils:["marteau"], effet:"Les bêtes apportent des livres deux fois plus souvent : elles ont vu qu'il y avait de la place."},
   {id:"presse", nom:"Une presse à relier", prix:300, materiaux:{bois:4, pierre:4, clous:4}, outils:["marteau"], effet:"Les réparations vont deux fois plus vite."},
   {id:"lampe", nom:"Une lampe de travail", prix:250, materiaux:{verre:2, clous:2}, outils:[], effet:"On travaille aussi la nuit (sans elle, les ateliers se reposent quand le soleil est couché)."},
-  {id:"etabli2", nom:"Des postes doublés", prix:500, materiaux:{bois:8, clous:6}, outils:["scie","marteau"], effet:"Chaque atelier peut accueillir deux livres à la fois."},
+  {id:"etabli2", nom:"Un grand séchoir", prix:500, materiaux:{bois:8, clous:6}, outils:["scie","marteau"], effet:"Le séchoir accueille trois livres à la fois."},
 ];
 CONTENU.LIVRES = [
   {id:"herbier", titre:"Le Petit Herbier des chemins", genre:"Herbier", couleur:"#6f8a4e", premier:true,
