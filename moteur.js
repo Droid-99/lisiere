@@ -325,8 +325,11 @@ function majPot(i){
     const stade = Math.min(3,Math.floor(av*4));
     if(soif) cls+=" soif"; if(attend) cls+=" attend";
     cle = `${pot.plante}${stade}${soif?"s":""}${attend?"a":""}${av>=1?"p":""}${pct}`;
-    html = svgPlante(p,av) + (av>=1?`<span class="badge pret">prêt</span>`:soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">${p.nom} · ${pct} %</span>`;
-    label = `${p.nom}, ${pct} %${soif?", a soif":""}${attend?", attend le jour":""}${av>=1?", prêt à récolter":""}`;
+    if(pot.mystere && av<1){ cle = `m${stade}${soif?"s":""}${attend?"a":""}`;
+      html = `<span class="mystere">${["🌰","🌱","🌿","🪴"][stade]}</span>` + (soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">Graine mystère · ?</span>`;
+      label = `Graine mystère${soif?", a soif":""}`; }
+    else html = svgPlante(p,av) + (av>=1?`<span class="badge pret">prêt</span>`:soif?`<span class="badge soif">💧 soif</span>`:attend?`<span class="badge attend">🌙 attend</span>`:"") + `<span class="etiq">${p.nom} · ${pct} %</span>`;
+    if(!(pot.mystere && av<1)) label = `${p.nom}, ${pct} %${soif?", a soif":""}${attend?", attend le jour":""}${av>=1?", prêt à récolter":""}`;
   }
   if(cle!==el.cle){ el.cle=cle; el.b.className=cls; el.b.innerHTML=html; el.b.setAttribute("aria-label",label); }
 }
@@ -378,6 +381,7 @@ function rendreBarre(){
       const k = Object.keys(PLANTES).find(k=>PLANTES[k].graine && PLANTES[k].zone===z.id), p = k && PLANTES[k];
       if(p) bouton(`${p.emoji} ${p.nom} <small>×${etat.graines}</small>`, outil===k, "", ()=>{ outil=k; dire(`Graine rare. ${duree(p.duree)} de pousse, se vend ${p.valeur} or. Elle luit la nuit.`); rendreBarre(); });
     }
+    if((etat.mysteres||0)>0 && z.id==="potager") bouton(`❔ Graine mystère <small>×${etat.mysteres}</small>`, outil==="mystere", "", ()=>{ outil="mystere"; dire("Une graine d'Odile. Personne ne sait ce qu'elle donnera, ni quand."); rendreBarre(); });
     const sep = document.createElement("div"); sep.className="sep"; bar.appendChild(sep);
   }
 }
@@ -393,24 +397,36 @@ function agir(i){
     const p = PLANTES[pot.plante];
     if(pot.age >= p.duree){
       etat.recoltes++;
-      const rare = Math.random() < .04 + fx().rare;
+      const myst = !!pot.mystere; delete pot.mystere;
+      const rare = myst || Math.random() < .04 + fx().rare;
       ajouter(rare ? pot.plante+"*" : pot.plante, 1);
       const hb = etat.herbier[pot.plante] = etat.herbier[pot.plante] || {n:0, rare:0}; hb.n++; if(rare){ hb.rare++; etat.rares=(etat.rares||0)+1; }
-      let txt = rare ? `✦ Variante rare : ${p.rare} ! Une forme rare de ${p.nom.toLowerCase()}, qui vaut trois fois plus. Elle est dans le panier.` : `${p.nom} ${accord(p,"récolté","récoltée")}, dans le panier.`;
+      let txt = myst ? `✦ La graine mystère a donné : ${p.rare}, une forme rare de ${p.nom.toLowerCase()}. Elle est dans le panier.` : rare ? `✦ Variante rare : ${p.rare} ! Une forme rare de ${p.nom.toLowerCase()}, qui vaut trois fois plus. Elle est dans le panier.` : `${p.nom} ${accord(p,"récolté","récoltée")}, dans le panier.`;
       if(p.matiere && Math.random()<p.matiere.proba){ etat.matieres[p.matiere.id]=(etat.matieres[p.matiere.id]||0)+1; txt += ` ${MATIERES[p.matiere.id].emoji} Une ${MATIERES[p.matiere.id].nom.toLowerCase()} dans la vase.`; }
       const evt = {type:"recolte", plante:pot.plante, pot:{...pot}, zone:z.id};
       pot.plante=null; pot.age=0; pot.sec=0;
       potsEl[i].b.classList.add("recolte"); setTimeout(()=>potsEl[i].b.classList.remove("recolte"),600);
       dire(txt); tinter(660); tinter(880,.12);
       evenement(evt);
+    } else if(pot.mystere && outil!=="eau"){ dire("Elle pousse. Personne ne sait ce que ce sera, ni quand.");
     } else if(outil==="eau"){
-      if(besoin(p)!=="rosee") dire(`${p.nom} ${besoin(p)==="pluie"?"ne boit que la pluie":"n'a besoin que de lumière"}.`);
+      if(pot.mystere && besoin(p)==="rosee" && pot.eau<=0 && etat.rosee>0){ etat.rosee--; pot.eau = p.soif; dire(`La graine mystère boit. ${etat.rosee} goutte${etat.rosee>1?"s":""} en réserve.`); tinter(330); rendre(); }
+      else if(pot.mystere) dire("La graine mystère n'a pas besoin d'eau pour l'instant.");
+      else if(besoin(p)!=="rosee") dire(`${p.nom} ${besoin(p)==="pluie"?"ne boit que la pluie":"n'a besoin que de lumière"}.`);
       else if(pot.eau>0) dire(`${p.nom} n'a pas soif pour l'instant. Garde ta goutte.`);
       else if(etat.rosee<=0) dire(`Plus de rosée. Prochaine goutte dans ${duree((PLUIE?REGLES.regenRosee/2:REGLES.regenRosee)-etat.regen)}.`);
       else { etat.rosee--; pot.eau = p.soif; dire(`${p.nom} boit. ${etat.rosee} goutte${etat.rosee>1?"s":""} en réserve.`); tinter(330); rendre(); }
     } else dire(`${p.nom} pousse encore (${Math.min(99,Math.floor(100*pot.age/p.duree))} %), prêt${p.g==="f"?"e":""} dans ${p.duree-pot.age<60?"moins d’une minute":duree(p.duree-pot.age)}${besoin(p)==="lumiere"?" de jour":besoin(p)==="pluie"?" de pluie":""}.` + (besoin(p)==="rosee" && pot.eau<=0 ? ` Et ${accord(p,"il","elle")} a soif.` : besoin(p)==="lumiere" && nuit() ? ` ${accord(p,"Il","Elle")} attend le jour.` : ""));
   } else {
     if(outil==="eau"){ dire("Rien à arroser ici."); return; }
+    if(outil==="mystere"){
+      if(z.id!=="potager" || (etat.mysteres||0)<=0){ outil=z.graines[0]; rendreBarre(); return; }
+      etat.mysteres--; const k = hasard(["radis","tulipe","lavande","citrouille","lunefleur"]), pm = PLANTES[k];
+      pot.plante = k; pot.mystere = true; pot.age = 0; pot.eau = besoin(pm)==="rosee" ? pm.soif : 0; pot.sec = 0;
+      dire("Graine mystère semée. Elle poussera à son rythme ; on verra bien ce qu'elle devient."); tinter(440); tinter(587,.15);
+      if(etat.mysteres<=0) outil=z.graines[0];
+      rendreBarre(); evenement(null); sauver(); rendre(); return;
+    }
     const p = PLANTES[outil];
     if(!p || p.zone!==z.id || (besoin(p)==="pluie" && !PLUIE && !fx().pluieToujours)){ outil=z.graines[0]; rendreBarre(); dire("Choisis une graine dans la barre, puis touche une place libre."); return; }
     if(p.graine){ if(etat.graines<=0){ outil=z.graines[0]; rendreBarre(); return; } etat.graines--; }
@@ -543,7 +559,8 @@ function appliquerDon(don){
   if(don.or){ gagnerOr(don.or); t.push(`+${don.or} 🪙`); }
   if(don.lunes){ gagnerLunes(don.lunes); t.push(`+${don.lunes} 🌙`); }
   if(don.recette){ etat.recettes[don.recette]=1; t.push(`recette : ${DENREES[don.recette].nom.toLowerCase()}`); }
-  if(don.graines){ etat.graines+=don.graines; t.push(`${don.graines} graines rares`); }
+  if(don.graines){ etat.graines+=don.graines; t.push(`${don.graines} graine${don.graines>1?"s":""} de fleur de lune (barre du potager)`); }
+  if(don.mysteres){ etat.mysteres=(etat.mysteres||0)+don.mysteres; t.push(`${don.mysteres} graine${don.mysteres>1?"s":""} mystère${don.mysteres>1?"s":""} (barre du potager)`); }
   for(const k in (don.matieres||{})){ ajouter(k, don.matieres[k]); t.push(`${MATIERES[k].emoji} +${don.matieres[k]}`); }
   return t.join(", ");
 }
@@ -1356,6 +1373,7 @@ function ouvrirCabane(){
   const ameli = AMC.map(a=>amC(a.id) ? `<div class="regle"><b>✓ ${a.nom}</b><small>${a.effet}</small></div>` : `<div class="regle"><b>${a.nom}</b><small>${a.effet}</small><div class="besoins">${besoinsBatiment(a)}</div><button class="choix" data-ameli="${a.id}" ${manqueBatiment(a).length?"disabled":""}>Installer</button></div>`).join("");
   const html = `<h2>🛖 La cabane</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
     <p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare. Coudre, coller, nettoyer : une chose à la fois. Le séchoir, lui, travaille pendant ce temps.</p>
+    ${!etat.boiteTrouvee && !etat.ville.chapitres.boite && etat.ville.chapitres.ruelle ? `<div class="plancher"><h3>Le plancher</h3><p class="intro">Mme Ruelle parlait d'une boîte, sous le plancher d'une cabane. Odile comptait toujours à partir de la cheminée.</p><div class="planches">${[1,2,3,4,5,6].map(i=>`<button class="planche" data-planche="${i}" aria-label="Planche ${i}"></button>`).join("")}</div><small class="intro">la cheminée ← → la fenêtre</small></div>` : ""}
     <h3>À réparer <small>${enAttente.length}</small></h3>${abimes || `<p class="intro">${c.travaux.length ? "Rien d'autre à réparer." : "Rien à réparer."} Salue les visiteurs : il arrive qu'ils laissent un livre sur le seuil.</p>`}
     <h3>Les ateliers</h3>${repos && c.travaux.length ? `<p class="intro">La nuit, les ateliers se reposent. Une lampe de travail permettrait de continuer.</p>` : ""}${ateliers}
     <h3>L'étagère <small>${repares.length}/${LIVRES.length}</small></h3>${etagere}
@@ -1366,6 +1384,12 @@ function ouvrirCabane(){
   pn.querySelectorAll("[data-reparer]").forEach(b=>b.addEventListener("click",()=>lancerReparation(b.dataset.reparer, b.dataset.def)));
   pn.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireLivre(b.dataset.lire)));
   pn.querySelectorAll("[data-ameli]").forEach(b=>b.addEventListener("click",()=>ameliorerCabane(b.dataset.ameli)));
+  pn.querySelectorAll("[data-planche]").forEach(b=>b.addEventListener("click",()=>{
+    if(b.dataset.planche!=="3"){ b.classList.add("tapee"); dire(hasard(["Une planche bien clouée. Rien dessous.","Elle ne bouge pas.","Un peu de poussière, c'est tout.","Elle grince, mais elle tient."])); tinter(220); return; }
+    etat.boiteTrouvee = 1; sauver(); tinter(392); tinter(523,.15); tinter(659,.3);
+    dire("La troisième planche bouge. Dessous, une boîte à biscuits en fer…"); majCourrier(0);
+    setTimeout(()=>{ if(etat.ville.chapitres.boite) lireChapitre("boite"); else ouvrirCabane(); }, 900);
+  }));
 }
 setInterval(()=>{ const pn=$("panneau"), page=pn && pn.querySelector(".page"); if(pn && !pn.hidden && page && page.dataset.vue==="cabane" && !document.hidden) ouvrirCabane(); }, 20000);
 function lancerChantier(b){
@@ -1543,7 +1567,9 @@ function tick(){
 function retour(){
   const dt = Math.min(43200,(Date.now()-dernierTick)/1000);
   TEMPSID = REGLES.temps(new Date()); PLUIE = tempsDef().pluie; PHASE = phaseDe(new Date()); rendreMeteo(); rendreNav();
-  collecte = []; if(!etat.amitieRattrapee){ etat.amitieRattrapee = 1; for(const h of HABITANTS){ const hs=(etat.habitants||{})[h.id]; if(!hs) continue; const n = (hs.faites||[]).filter(id=>{ const d=h.demandes.find(x=>x.id===id); return d && !d.offrir; }).length; if(n) hs.amitie = Math.min(10, (hs.amitie||0) + 2*n); } }
+  collecte = []; if(etat.ville.chapitres.boite && !etat.mysteresOdile){ etat.mysteresOdile = 1; etat.mysteres = (etat.mysteres||0) + 2; annoncer("En rangeant la boîte d'Odile, tu trouves au fond deux graines que tu n'avais pas vues : des graines mystères. Elles t'attendent dans la barre du potager."); }
+  if(!etat.ville.chapitres.boite) etat.mysteresOdile = 1;
+  if(!etat.amitieRattrapee){ etat.amitieRattrapee = 1; for(const h of HABITANTS){ const hs=(etat.habitants||{})[h.id]; if(!hs) continue; const n = (hs.faites||[]).filter(id=>{ const d=h.demandes.find(x=>x.id===id); return d && !d.offrir; }).length; if(n) hs.amitie = Math.min(10, (hs.amitie||0) + 2*n); } }
   if(bati("cabane") && !etat.cabaneFoyer){ etat.cabaneFoyer = 1; annoncer("Ta cabane a maintenant une cheminée : un feu de plus à l'atelier. Et une boîte aux lettres : une lettre de plus chaque matin, qui attend un jour de plus."); } majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
   if(dt<120){ const notes=collecte; collecte=null; notes.forEach(dire); tick(); return; }
   const murs = ()=>ZONES.reduce((n,z)=>n+etat.zones[z.id].pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length,0);
@@ -1708,7 +1734,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.17.2";
+const VERSION_APP="0.17.3";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

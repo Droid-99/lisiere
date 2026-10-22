@@ -425,3 +425,8 @@ details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6
 .couv.grande{width:56px;height:78px;border-radius:4px 8px 8px 4px;box-shadow:inset 6px 0 0 rgba(0,0,0,.25),0 4px 12px rgba(0,0,0,.35);transform:rotate(-4deg)}
 .cuisson.libre{background:transparent;box-shadow:none;border:2px dashed #e6a35c;opacity:.95}
 .cuisson.libre b{color:#f0c27a}
+.plancher{background:rgba(0,0,0,.16);border-radius:14px;padding:4px 12px 10px;margin:8px 0}
+.planches{display:flex;gap:3px;margin:6px 0 2px}
+.planche{flex:1;height:54px;border:0;border-radius:3px;cursor:pointer;background:linear-gradient(90deg,#7a5536,#8f6642 40%,#7a5536);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25),inset 0 6px 0 rgba(255,255,255,.05)}
+.planche.tapee{filter:brightness(.8)}
+.pot .mystere{font-size:2.6rem;line-height:1;display:block;margin:6px auto 0;text-align:center}
