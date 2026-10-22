@@ -610,7 +610,7 @@ CONTENU.LIVRES = [
 ];
 
 CONTENU.ETALS = [
-  /* la nuit, de minuit à 4 h, les étals sont vides ; sauf un. Il ne veut pas d'or : il veut des lunes. */
+  /* la nuit, de 21 h à 4 h, les étals sont vides ; sauf un. Il ne veut pas d'or : il veut des lunes. */
   {id:"etranger", nom:"L'étranger capuché", metier:"on ne sait pas d'où", emoji:"🧥", nuit:true, jours:[0,1,2,3,4,5,6], monnaie:"lunes",
    phrase:"Je ne reste pas. Prends ou laisse. L'or ne m'intéresse pas ; la lune, si.",
    vend:[["mystere",25,1],["graine",40,1],["nacre",8,2],["miel",6,2]]},
