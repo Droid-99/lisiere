@@ -1144,7 +1144,7 @@ function rendreVillage(){
   const soleilLeve = estSoleilLeve();
   const vis = etat.ville.lettres.find(l=>l.enPersonne), fete = feteActive();
   const cle = JSON.stringify([Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
-  if(cle===cleVillage) return; cleVillage = cle;
+  if(cle===cleVillage){ rendreSeuil(); return; } cleVillage = cle;   // le résumé suit les pots à chaque instant (il ne se réécrit que s'il change)
   { const {w,h} = CARTE, g = $("village").querySelector("#passant");
     if(vis){ const p = pnjDe(vis.pnj), T = w*.13; g.innerHTML = `<circle cx="${w*.47}" cy="${h*.86}" r="${w*.05}" fill="#f4d58a" opacity=".25"><animate attributeName="r" values="${w*.045};${w*.06};${w*.045}" dur="2.4s" repeatCount="indefinite"/></circle>` + (IMG ? `<image href="img/pnj-${p.id}.webp" x="${w*.47-T/2}" y="${h*.89-T}" width="${T}" height="${T}"></image>` : `<text x="${w*.47}" y="${h*.88}" font-size="${w*.06}" text-anchor="middle">${p.emoji}</text>`) + `<circle cx="${w*.505}" cy="${h*.80}" r="${w*.012}" fill="#f4d58a"/><text x="${w*.505}" y="${h*.806}" font-size="${w*.016}" text-anchor="middle" font-weight="700" fill="#141a2e">!</text>`; g.setAttribute("aria-label", `${p.nom} attend près du sentier`); g.setAttribute("role","button"); }
     else g.innerHTML = "";
@@ -1563,7 +1563,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.7";
+const VERSION_APP="0.15.8";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
