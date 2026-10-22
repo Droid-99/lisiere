@@ -1202,10 +1202,15 @@ function rendreSeuil(){
   if(nv) part.push(`<b>${nv} nouvelle${nv>1?"s":""} lettre${nv>1?"s":""}</b>`); if(pr) part.push(`${pr} prête${pr>1?"s":""} à livrer`); if(chp) part.push(`une lettre de l'histoire à lire`);
   if(part.length) lignes.push(`<span>✉️ ${part.join(" · ")}</span>`);
   if(vis) lignes.push(`<span>👋 <b>${pnjDe(vis.pnj).nom}</b> attend près du sentier</span>`);
+  if(etat.cabane){ const c=etat.cabane, t=c.travaux[0], ab=aReparer().length, nonLus=LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length && !c.lus[l.id]).length, part=[];
+    if(t) part.push(`établi : encore ${duree(Math.max(60, t.reste/(amC("presse")?2:1)))}`); else if(ab) part.push(`${ab} livre${ab>1?"s":""} à réparer`);
+    if(nonLus) part.push(`<b>${nonLus} à lire</b>`);
+    if(part.length) lignes.push(`<span>🛖 <b>Cabane</b> · ${part.join(", ")}</span>`); }
   // ne toucher au bandeau que s'il change : le réécrire à chaque seconde le faisait clignoter
   const html = lignes.join(""); if(s.dataset.html!==html){ s.dataset.html = html; s.innerHTML = html; } if(s.hidden !== !lignes.length) s.hidden = !lignes.length;
 }
 function ouvrirBatiment(id){
+  if(id==="cabane" && bati("cabane")) return ouvrirCabane();
   const b = BATIMENTS.find(x=>x.id===id), ch = etat.village.chantier, fini = bati(id), enCours = ch && ch.id===id;
   let corps = `<p class="intro">${b.texte}</p>`;
   if(fini) corps += `<div class="regle"><b>Terminé</b><small class="histoire">${b.histoire}</small></div>`;
@@ -1229,6 +1234,106 @@ function manqueBatiment(b){
   for(const k of (b.outils||[])) if(!(etat.matieres[k]>0)) m.push(`${MATIERES[k].g==="f"?"une":"un"} ${MATIERES[k].nom.toLowerCase()}`);
   return m;
 }
+/* ---------- la cabane : l'atelier de reliure ----------
+   etat.cabane = {livres:{id:{defauts:[...], recu, offert}}, travaux:[{livre, defaut, reste}], ameli:{id:1}, lus:{id:1}} */
+const LIVRES = CONTENU.LIVRES, DEFAUTS = CONTENU.DEFAUTS_LIVRE, AMC = CONTENU.AMELIO_CABANE;
+const cab = () => (etat.cabane = etat.cabane || {livres:{}, travaux:[], ameli:{}, lus:{}});
+const amC = id => !!(etat.cabane && etat.cabane.ameli[id]);
+const livreDef = id => LIVRES.find(l=>l.id===id);
+const maxTravaux = () => amC("etabli2") ? 2 : 1;
+const aReparer = () => Object.keys(cab().livres).filter(id=>cab().livres[id].defauts.length);
+function nomBesoin(k){ return MATIERES[k] ? MATIERES[k].nom.toLowerCase() : defObjet(k).nom.toLowerCase(); }
+function besoinTxt(b){ const k=Object.keys(b); return k.length ? k.map(x=>`${b[x]} ${plur(nomBesoin(x), b[x])}`).join(", ") : "rien que du temps"; }
+// le premier livre attend sous l'établi dès que la cabane est là
+function initCabane(){
+  if(!bati("cabane") || etat.cabane) return;
+  const c = cab(), l = LIVRES.find(x=>x.premier); c.livres[l.id] = {defauts:["tache"], recu:Date.now()};
+  annoncer(`Sous l'établi de la cabane, un vieux livre abîmé : « ${l.titre} ». Touche la cabane sur la carte pour entrer : tu peux le réparer.`);
+}
+// un livre abandonné, rapporté par une bête ; les carnets d'Odile arrivent dans l'ordre
+function apporterLivre(){
+  const c = cab(), pris = id => !!c.livres[id];
+  const suiteMin = Math.min(...LIVRES.filter(l=>l.suite && !pris(l.id)).map(l=>l.suite));
+  const dispo = LIVRES.filter(l=>!pris(l.id) && (!l.suite || l.suite===suiteMin));
+  if(!dispo.length) return null;
+  const l = hasard(dispo), types = Object.keys(DEFAUTS).sort(()=>Math.random()-.5);
+  const n = l.suite ? 2 + Math.floor(Math.random()*2) : 1 + Math.floor(Math.random()*3);
+  c.livres[l.id] = {defauts:types.slice(0, n), recu:Date.now()};
+  return l;
+}
+// l'établi travaille ; sans lampe, il se repose quand le soleil est couché
+function relier(dt, jour){
+  const c = etat.cabane; if(!c || !c.travaux.length) return;
+  if(!jour && !amC("lampe")) return;
+  const v = amC("presse") ? 2 : 1;
+  for(const t of c.travaux.slice()){
+    t.reste -= dt*v; if(t.reste>0) continue;
+    c.travaux = c.travaux.filter(x=>x!==t);
+    const l = c.livres[t.livre], d = livreDef(t.livre); if(!l || !d) continue;
+    l.defauts = l.defauts.filter(x=>x!==t.defaut);
+    annoncer(l.defauts.length ? `« ${d.titre} » : ${DEFAUTS[t.defaut].nom.toLowerCase()}, c'est réparé. Il reste ${l.defauts.length} défaut${l.defauts.length>1?"s":""}.` : `« ${d.titre} » est réparé. Il rejoint l'étagère de la cabane : tu peux le lire.`);
+    if(!l.defauts.length) tinter(523), tinter(659,.12), tinter(784,.24);
+  }
+}
+function lancerReparation(id, def){
+  const c = cab(), l = c.livres[id], D = DEFAUTS[def]; if(!l || !D || !l.defauts.includes(def)) return;
+  if(c.travaux.length>=maxTravaux()){ dire("L'établi est occupé."); return; }
+  if(c.travaux.some(t=>t.livre===id)){ dire("Ce livre est déjà sur l'établi."); return; }
+  for(const k in D.besoin) if(qte(k)<D.besoin[k]){ dire(`Il te faut ${besoinTxt(D.besoin)}.`); return; }
+  for(const k in D.besoin) retirer(k, D.besoin[k]);
+  c.travaux.push({livre:id, defaut:def, reste:D.duree});
+  dire(`${D.geste} : « ${livreDef(id).titre} » est sur l'établi.`); tinter(392); tinter(494,.12);
+  sauver(); rendre(); ouvrirCabane();
+}
+function lireLivre(id){
+  const c = cab(), d = livreDef(id); if(!d || !c.livres[id] || c.livres[id].defauts.length) return;
+  let gain = "";
+  if(!c.lus[id]){ c.lus[id] = 1;
+    if(d.don && d.don.recette){ const r = RECETTES.find(x=>x.id===d.don.recette); if(r && !etat.recettes[r.id]){ etat.recettes[r.id]=1; gain = `Tu as appris une recette : ${DENREES[r.id].nom.toLowerCase()}. Elle t'attend à l'atelier.`; } else { gagnerLunes(3); gain = "Tu connaissais déjà cette recette : +3 🌙."; } }
+    if(d.don && d.don.graine){ etat.graines += d.don.graine; gain = "Une graine de fleur de lune : elle t'attend dans la barre du potager."; }
+    if(d.don && d.don.lunes){ gagnerLunes(d.don.lunes); gain = `+${d.don.lunes} 🌙`; }
+    evenement({type:"livre", id}); sauver(); rendre();
+  }
+  const lebrun = pnjDispo().some(p=>p.id==="lebrun"), livre = c.livres[id];
+  const p = ouvrirPanneau(`<h2>📖 ${d.titre}</h2><div class="corps"><p class="intro">${d.genre}</p><div class="livreTexte">${d.texte.split("\n").map(x=>`<p>${x}</p>`).join("")}</div>${gain?`<div class="regle"><b>Entre les pages</b><small>${gain}</small></div>`:""}
+    ${lebrun ? (livre.offert ? `<p class="intro">Prêté à la bibliothèque de l'école. M. Lebrun en prend soin.</p>` : `<button class="choix" id="offrirLivre">Le prêter à l'école de M. Lebrun</button>`) : ""}
+    <button class="choix" id="retourCabane">Retour à la cabane</button></div>`);
+  const o = $("offrirLivre"); if(o) o.addEventListener("click", ()=>{ livre.offert = "lebrun"; gagnerOr(30); gagnerLunes(2); sauver(); rendre(); dire(`M. Lebrun : « Les enfants vont l'adorer. Je vous le rendrai en meilleur état qu'il n'est parti. » +30 🪙 +2 🌙.`); lireLivre(id); });
+  $("retourCabane").addEventListener("click", ouvrirCabane);
+}
+function ameliorerCabane(id){
+  const a = AMC.find(x=>x.id===id); if(!a || amC(id) || manqueBatiment(a).length) return;
+  etat.or -= a.prix; for(const k in a.materiaux) etat.matieres[k] -= a.materiaux[k]; cab().ameli[id] = 1;
+  dire(`${a.nom} dans la cabane. ${a.effet}`); tinter(523); tinter(659,.12); tinter(784,.24);
+  sauver(); rendre(); ouvrirCabane();
+}
+const couv = (d, cls="") => `<span class="couv ${cls}" style="--c:${d.couleur}"></span>`;
+function ouvrirCabane(){
+  const c = cab(), jour = estSoleilLeve(), repos = !jour && !amC("lampe");
+  const travaux = c.travaux.map(t=>{ const d=livreDef(t.livre), D=DEFAUTS[t.defaut], v=amC("presse")?2:1, pc=Math.max(0, Math.min(100, Math.round(100*(1-t.reste/D.duree))));
+    return `<div class="article">${couv(d)}<div><b>${d.titre}</b><small>${D.geste} · ${repos?"l'établi se repose jusqu'au matin":"encore "+duree(Math.max(60,t.reste/v))}</small><span class="jauge"><i style="width:${pc}%"></i></span></div></div>`; }).join("");
+  const libres = maxTravaux() - c.travaux.length;
+  const abimes = aReparer().map(id=>{ const d=livreDef(id), l=c.livres[id], enCours=c.travaux.some(t=>t.livre===id);
+    return `<div class="livreAbime">${couv(d)}<div><b>${d.titre}</b><small>${d.genre}${enCours?" · sur l'établi":""}</small>${l.defauts.map(k=>{ const D=DEFAUTS[k], ok=Object.keys(D.besoin).every(x=>qte(x)>=D.besoin[x]);
+      return `<div class="defaut"><span><b>${D.nom}</b><small>${D.geste} · ${besoinTxt(D.besoin)} · ${duree(D.duree/(amC("presse")?2:1))}</small></span><button data-reparer="${id}" data-def="${k}" ${(!libres||enCours||!ok)?"disabled":""}>Réparer</button></div>`; }).join("")}</div></div>`; }).join("");
+  const repares = LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length);
+  const dos = LIVRES.map(l=>{ const x=c.livres[l.id]; if(x && !x.defauts.length) return `<button class="dos" style="--c:${l.couleur}" data-lire="${l.id}" aria-label="${l.titre}"><span>${l.titre}</span>${c.lus[l.id]?"":"<i></i>"}</button>`; return `<span class="dos vide"></span>`; });
+  const etagere = [0,10].map(i=>`<div class="etagere">${dos.slice(i,i+10).join("")}</div>`).join("");
+  const ameli = AMC.map(a=>amC(a.id) ? `<div class="regle"><b>✓ ${a.nom}</b><small>${a.effet}</small></div>` : `<div class="regle"><b>${a.nom}</b><small>${a.effet}</small><div class="besoins">${besoinsBatiment(a)}</div><button class="choix" data-ameli="${a.id}" ${manqueBatiment(a).length?"disabled":""}>Installer</button></div>`).join("");
+  const html = `<h2>🛖 La cabane</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
+    <p class="intro">Un établi, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare.</p>
+    <h3>L'établi <small>${c.travaux.length}/${maxTravaux()}</small></h3>${travaux || `<p class="intro">Libre. Choisis un défaut à réparer ci-dessous.</p>`}${repos && c.travaux.length ? `<p class="intro">La nuit, l'établi se repose. Une lampe de travail permettrait de continuer.</p>` : ""}
+    <h3>À réparer <small>${aReparer().length}</small></h3>${abimes || `<p class="intro">Rien à réparer. Salue les visiteurs : il arrive qu'ils laissent un livre sur le seuil.</p>`}
+    <h3>L'étagère <small>${repares.length}/${LIVRES.length}</small></h3>${etagere}
+    <h3>Améliorer la cabane</h3>${ameli}</div>`;
+  const pn = $("panneau"), page = pn.querySelector(".page");
+  if(!pn.hidden && page && page.dataset.vue==="cabane"){ const y = page.scrollTop; page.innerHTML = html + `<button class="fermer" id="fermerPanneau">Refermer</button>`; $("fermerPanneau").addEventListener("click",()=>{pn.hidden=true;}); page.scrollTop = y; }
+  else { ouvrirPanneau(html); pn.querySelector(".page").dataset.vue = "cabane"; }
+  pn.querySelectorAll("[data-reparer]").forEach(b=>b.addEventListener("click",()=>lancerReparation(b.dataset.reparer, b.dataset.def)));
+  pn.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireLivre(b.dataset.lire)));
+  pn.querySelectorAll("[data-ameli]").forEach(b=>b.addEventListener("click",()=>ameliorerCabane(b.dataset.ameli)));
+}
+setInterval(()=>{ const pn=$("panneau"), page=pn && pn.querySelector(".page"); if(pn && !pn.hidden && page && page.dataset.vue==="cabane" && !document.hidden) ouvrirCabane(); }, 20000);
 function lancerChantier(b){
   if(etat.village.chantier || manqueBatiment(b).length || bati(b.id)) return;
   etat.or -= b.prix; for(const k in (b.materiaux||{})) etat.matieres[k] -= b.materiaux[k]; const now=Date.now();
@@ -1320,6 +1425,8 @@ function saluer(){
   const auj = new Date().toDateString();
   if(d.don.graine && etat.graines<2 && etat.graineJour!==auj && Math.random()<d.don.graine){ etat.graines++; etat.graineJour=auj; txt += " Une graine de fleur de lune roule à tes pieds."; }
   if(d.don.matiere && Math.random()<d.don.matiere.proba){ const m=d.don.matiere.id; etat.matieres[m]=(etat.matieres[m]||0)+1; txt += ` ${MATIERES[m].emoji} ${MATIERES[m].nom} : +1.`; }
+  // parfois, une bête laisse un livre abandonné sur le seuil de la cabane
+  if(bati("cabane") && aReparer().length<3 && Math.random() < (amC("etageres") ? .14 : .07)){ const l = apporterLivre(); if(l) txt += ` Sur le seuil, un livre abîmé : « ${l.titre} ». Il t'attend dans la cabane.`; }
   etat.zones[z].visiteur = null; dire(txt); tinter(587); tinter(784,.1); tinter(988,.2);
   evenement({type:"salut", visiteur:d.id, fois:etat.visites[d.id]});
   sauver(); rendre(); rendreBarre();
@@ -1354,12 +1461,13 @@ function pousser(dt, lumiere){
   }
 }
 function avancer(dt){
-  produire(dt);
+  produire(dt); initCabane();
   // par tranches de 15 min au plus, pour que les plantes de lumière suivent le vrai jour pendant une absence
   let t = Date.now() - dt*1000, reste = dt;
   while(reste > 0){
     const pas = Math.min(900, reste);
-    pousser(pas, phaseDe(new Date(t + pas*500)).ciel==="soleil");
+    const jour = phaseDe(new Date(t + pas*500)).ciel==="soleil";
+    pousser(pas, jour); relier(pas, jour);
     t += pas*1000; reste -= pas;
   }
   const regen = (PLUIE ? REGLES.regenRosee/2 : REGLES.regenRosee) * fx().regenRosee;
@@ -1563,7 +1671,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.9";
+const VERSION_APP="0.16.0";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

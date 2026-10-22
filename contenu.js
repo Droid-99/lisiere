@@ -545,6 +545,66 @@ CONTENU.BATIMENTS = [
               ix, iy : sa place sur la carte illustrée (comme les bâtiments) ; image img/poste-<id du marchand>.webp
               niveaux : [{par : unités par heure, reserve : stock au-delà duquel il s'arrête, prix : or pour atteindre ce niveau}]
 */
+/* ---------- LA RELIURE (dans la cabane) ----------
+   Les animaux rapportent parfois un livre abandonné dans le bois (souvent un livre d'Odile, dispersé du temps de sa bâche).
+   Chaque livre arrive avec un à trois défauts ; chaque défaut se répare à l'établi, avec un peu de récolte et du temps.
+   Réparé, le livre rejoint l'étagère et se lit ; certains cachent un don (recette, graine, lunes).
+   suite : les carnets d'Odile arrivent dans l'ordre. */
+CONTENU.DEFAUTS_LIVRE = {
+  decousu:    {nom:"Reliure décousue", geste:"Recoudre au fil de roseau", besoin:{roseau:2}, duree:2*3600},
+  mouille:    {nom:"Pages gondolées par l'eau", geste:"Faire sécher près de la cheminée", besoin:{}, duree:4*3600},
+  couverture: {nom:"Couverture arrachée", geste:"Recoller sur de fines planches", besoin:{bois:1, miel:1}, duree:3*3600},
+  tache:      {nom:"Pages tachées", geste:"Nettoyer à l'eau de lavande", besoin:{lavande:1}, duree:3600},
+};
+CONTENU.AMELIO_CABANE = [
+  {id:"etageres", nom:"Des étagères", prix:120, materiaux:{bois:6, clous:4}, outils:["marteau"], effet:"Les bêtes apportent des livres deux fois plus souvent : elles ont vu qu'il y avait de la place."},
+  {id:"presse", nom:"Une presse à relier", prix:300, materiaux:{bois:4, pierre:4, clous:4}, outils:["marteau"], effet:"Les réparations vont deux fois plus vite."},
+  {id:"lampe", nom:"Une lampe de travail", prix:250, materiaux:{verre:2, clous:2}, outils:[], effet:"On travaille aussi la nuit (sans elle, l'établi se repose quand le soleil est couché)."},
+  {id:"etabli2", nom:"Un second établi", prix:500, materiaux:{bois:8, clous:6}, outils:["scie","marteau"], effet:"Deux réparations en même temps."},
+];
+CONTENU.LIVRES = [
+  {id:"herbier", titre:"Le Petit Herbier des chemins", genre:"Herbier", couleur:"#6f8a4e", premier:true,
+   texte:"Un herbier d'écolier, des fleurs pressées entre des pages quadrillées. Dans la marge, une écriture penchée a ajouté au crayon : « Une plante sur vingt-cinq, à peu près, sort autrement que les autres. Plus pâle, plus double, plus bleue. Ne pas chercher à la provoquer : la garder quand elle vient. » Sous une violette séchée, la même main : « Odile, 1971. Cueillie trop tôt. Pardon. »"},
+  {id:"conte-renard", titre:"Contes de la forêt de Bréau", genre:"Conte", couleur:"#8a4e3a", don:{lunes:3},
+   texte:"Le renard voulait la lune. Il a essayé de l'attraper dans l'étang, mais elle se cassait en morceaux chaque fois qu'il y mettait la patte. Alors il s'est assis et il a attendu que l'eau se calme. La lune est revenue, entière. Le renard a compris qu'on ne prend pas la lune : on la laisse se poser. Depuis, les renards s'assoient au bord des mares, les nuits claires, et ne touchent à rien."},
+  {id:"cuisine-veloute", titre:"Cahier de cuisine, écriture penchée", genre:"Cuisine", couleur:"#b0703a", don:{recette:"veloute"},
+   texte:"Des recettes recopiées à la main, des taches de gras, des quantités barrées et corrigées. L'une d'elles est entourée deux fois : un velouté des bois, « pour les soirs où l'on rentre trempé ». Au bas de la page : « Ne pas saler avant d'avoir goûté. Personne ne m'a jamais écoutée là-dessus. »"},
+  {id:"almanach", titre:"Almanach de l'année 1987", genre:"Almanach", couleur:"#4e6a8a",
+   texte:"Lever du soleil, phases de la lune, dictons. « Rosée du matin, journée sans chagrin. » « Quand il pleut, la terre boit pour toi : la rosée revient deux fois plus vite. » Quelqu'un a coché à l'encre tous les jours de pluie de l'été. Il y en a beaucoup. À côté du 14 août, un seul mot : « enfin »."},
+  {id:"lecons", titre:"Leçons de choses, cours moyen", genre:"Manuel", couleur:"#7a6a9a", don:{lunes:2},
+   texte:"Le manuel de l'école de Saint-Aubin, tamponné « Classe de Mme Vasseur ». La germination du haricot, le cycle de l'eau, les oiseaux de nos jardins. Dans la marge du chapitre sur les saisons, au crayon rouge, Odile a écrit pour elle-même : « On leur apprend que tout revient. On oublie de leur dire que ça revient un peu autrement. C'est ça qui est beau. »"},
+  {id:"etangs", titre:"Le Livre des étangs", genre:"Herbier", couleur:"#3f7a7a",
+   texte:"Planches en couleur des plantes d'eau. Le nénuphar, qui fleurit vite. Le roseau, patient. L'iris d'eau. Le lotus, qui demande une demi-journée entière et le rend au centuple. Une note au crayon sous le lotus : « Le bleu existe. Je l'ai vu une fois. Une seule. Je n'ai rien dit à personne, de peur qu'on ne me croie pas. »"},
+  {id:"bache-1", titre:"Carnet de bâche, premier été", genre:"Carnet d'Odile", couleur:"#5a4a3a", suite:1,
+   texte:"« Première nuit. Une bâche verte tendue entre deux frênes, un duvet, une lampe. Il a fait froid. Un hérisson est passé trois fois, comme un gardien qui fait sa ronde. Je ne sais pas ce que je fais ici. Je sais seulement que je ne voulais plus être ailleurs. Demain, je retourne la terre près du chemin. On verra bien ce qui accepte de pousser. »"},
+  {id:"bache-2", titre:"Carnet de bâche, deuxième été", genre:"Carnet d'Odile", couleur:"#5a4a3a", suite:2,
+   texte:"« Les radis ont levé avant moi ce matin. Margot, la petite de la boulangerie, est montée avec sa mère. Elle a mangé un radis plein de terre et elle a dit que c'était le meilleur du monde. Sa mère a fait la grimace. Moi, j'ai pensé que c'était la plus belle critique qu'on m'ait jamais faite. La bâche fuit. Je mets une casserole dessous. Elle sonne comme une cloche quand il pleut. »"},
+  {id:"bache-3", titre:"Carnet de bâche, troisième été", genre:"Carnet d'Odile", couleur:"#5a4a3a", suite:3, don:{graine:1},
+   texte:"« Dernier été sous la bâche, je crois. Je n'ai plus l'âge de dormir par terre, et je n'ai jamais eu celui de construire une cabane. Je laisse ça à quelqu'un d'autre. J'ai glissé une graine entre ces deux pages, la plus belle que j'aie trouvée. Si quelqu'un lit ça un jour, qu'il la plante un soir de lune. » Entre les pages, une graine pâle, intacte."},
+  {id:"champignons", titre:"Petit traité des champignons", genre:"Herbier", couleur:"#7a5a3a",
+   texte:"Les comestibles, les douteux, les mortels, avec des têtes de mort dessinées à l'encre. En face du cèpe : « Ne pousse que sous la pluie, et n'a jamais soif. Le cèpe d'automne, le vrai, se mérite : il faut beaucoup de pluie et un peu de chance. » Quelqu'un a ajouté, d'une autre main : « Et ne pas le dire aux voisins. »"},
+  {id:"encrier", titre:"Recettes de l'encrier", genre:"Cuisine", couleur:"#3a4a7a", don:{recette:"encre"},
+   texte:"Un mince cahier d'instituteur : comment faire de l'encre avec ce que l'on trouve. Noix, sureau, et une page entière sur l'iris d'eau, « qui donne un violet que les enfants préfèrent au bleu de l'économat ». En bas : « Testée en classe. Taches sur trois tabliers. Aucun regret. »"},
+  {id:"chouette", titre:"La Chouette qui comptait", genre:"Conte", couleur:"#4a4a6a", don:{lunes:2},
+   texte:"Il était une chouette qui comptait tout : les étoiles, les feuilles, les souris, les années. Elle n'arrivait jamais au bout et ça la rendait triste. Un soir, un vieux hibou lui a demandé ce qu'elle ferait du nombre, une fois trouvé. Elle n'a pas su répondre. Alors elle a arrêté de compter et elle a regardé. Il paraît qu'elle voit mieux, depuis."},
+  {id:"the", titre:"Le Thé des longues soirées", genre:"Cuisine", couleur:"#8a6a4a", don:{recette:"thesoir"},
+   texte:"Un livret publicitaire d'une herboristerie disparue, « Maison Cardon, plantes et simples ». Mélanges pour dormir, pour digérer, pour se consoler. Le thé du soir y est décrit avec un sérieux de notaire. Quelqu'un a souligné : « à boire assis, sans rien faire d'autre ». Et ajouté : « impossible, mais on essaie »."},
+  {id:"guide", titre:"Guide du promeneur, Saint-Aubin et ses bois", genre:"Guide", couleur:"#5a7a5a", don:{lunes:2},
+   texte:"Un guide jauni, avec une carte dépliante qui ne se replie plus. « Saint-Aubin-des-Bois, son église, sa boulangerie déjà réputée, ses sentiers. » La clairière y figure, sans nom, juste un cercle vert au bord du bois. Au crayon, quelqu'un l'a entourée trois fois et a écrit à côté : « ici ».",},
+  {id:"poemes", titre:"Poèmes d'un hiver", genre:"Poésie", couleur:"#6a7a8a",
+   texte:"Un recueil sans nom d'auteur, tiré à peu d'exemplaires. Un poème est marqué d'une feuille de frêne séchée :\n« Il a neigé sur la clairière,\nl'étang a mis son manteau gris.\nRien ne pousse, tout espère.\nLa terre dort. Elle a compris. »"},
+  {id:"graines", titre:"Le Livre des graines", genre:"Herbier", couleur:"#9a8a4a", don:{graine:1},
+   texte:"Un catalogue de semencier, avec des sachets dessinés. Les pages du milieu sont collées l'une à l'autre ; en les décollant, une graine de fleur de lune tombe sur l'établi. À côté de la fleur de lune, une note : « La double existe. Deux corolles l'une dans l'autre. Elle ne vient pas sur commande, elle vient quand elle veut. »"},
+  {id:"heron", titre:"Le Héron patient", genre:"Conte", couleur:"#5a6a7a", don:{lunes:3},
+   texte:"Un héron se tenait sur une patte au milieu de l'étang depuis si longtemps que les grenouilles l'avaient pris pour un piquet. Elles s'asseyaient sur ses pattes, elles y faisaient la sieste. Le héron avait très faim. Mais il les trouvait si tranquilles qu'il n'a pas eu le cœur de les déranger. Il a pêché ailleurs, ce jour-là. C'est une histoire pour les enfants qui ne tiennent pas en place."},
+  {id:"oiseaux", titre:"Registre des oiseaux de la lisière", genre:"Carnet", couleur:"#6a5a7a",
+   texte:"Des colonnes tracées à la règle : date, heure, espèce, remarque. « Merle, 6 h 10, chante faux. » « Hibou, 23 h, m'a regardée écrire. » « Merle, 6 h 12, chante toujours faux, je commence à l'aimer. » Les dernières pages sont vides. La toute dernière ligne dit seulement : « à continuer »."},
+  {id:"garde", titre:"Journal d'un garde forestier", genre:"Carnet", couleur:"#4a5a3a",
+   texte:"Tournées dans le bois communal, coupes, chablis. Une page parle de la clairière : « La vieille institutrice est encore là-haut sous sa bâche. Je lui ai proposé de l'aide pour monter des planches. Elle a dit non, merci, que c'était au prochain de le faire. J'ai pas compris. J'ai laissé les planches quand même, sous le frêne. »"},
+  {id:"relieur", titre:"Manuel du parfait relieur", genre:"Manuel", couleur:"#7a3a3a", don:{lunes:4},
+   texte:"Coudre, encoller, presser, attendre. Surtout attendre. « Un livre recousu à la hâte se défait à la première lecture. Un livre que l'on a laissé sécher une nuit de plus dure cent ans. » Sur la page de garde, un ex-libris : « Ce livre appartient à quiconque le répare. »"},
+];
+
 CONTENU.ETALS = [
   {id:"firmin", nom:"Firmin", metier:"le menuisier", emoji:"🪚", jours:[2,4,6],
    phrase:"Du chêne de la scierie, sec depuis deux hivers. Je le scie à la demande, mais pas trop vite.",
