@@ -183,8 +183,13 @@ function demandeActive(h){ const hs=etat.habitants[h.id]; return hs && hs.demand
 function terminerDemande(h, d){
   const hs = etat.habitants[h.id];
   hs.faites.push(d.id); hs.demande=null; hs.prochaine = Date.now() + h.delai*1000;
-  gagnerLunes(d.don);
-  dire(`${h.nom} a eu ce qu'il voulait. +${d.don} lunes. Son histoire s'écrit dans le carnet.`);
+  gagnerLunes(d.don); hs.amitie = Math.min(10, (hs.amitie||0) + 2);
+  const elle = h.nom.startsWith("La ");
+  // une demande accomplie se voit : la page de son histoire s'ouvre (ou attend dans le résumé d'absence)
+  const titre = `${h.nom} ${elle?"est contente":"est content"}`;
+  if(collecte) annoncer(`${titre} : ${d.but.charAt(0).toLowerCase()+d.but.slice(1)}. +${d.don} 🌙. ${d.histoire}`);
+  else if($("panneau").hidden) ouvrirPanneau(`<h2>${h.emoji} ${titre}</h2><div class="corps"><p class="intro">« ${d.texte} » C'est fait : ${d.but.charAt(0).toLowerCase()+d.but.slice(1)}.</p><div class="livreTexte"><p>${d.histoire}</p></div><div class="regle"><b>+${d.don} 🌙 et de l'amitié</b><small>Cette page rejoint son histoire, dans le carnet.</small></div></div>`);
+  else dire(`${titre}. +${d.don} lunes. Son histoire s'écrit dans le carnet.`);
   tinter(587); tinter(740,.12); tinter(880,.24); rendreBarre();
 }
 function majHabitants(evt){
@@ -211,7 +216,7 @@ function offrir(h, id){
   const d = demandeActive(h), def = defObjet(id), aime = h.aime.includes(base(id));
   if(d && d.offrir && d.offrir[base(id)]){
     const n = d.offrir[base(id)]; if(qte(base(id))<n) return;
-    retirer(base(id), n); hs.amitie=Math.min(10,(hs.amitie||0)+2); terminerDemande(h, d);
+    retirer(base(id), n); terminerDemande(h, d);
   } else {
     retirer(id,1);
     const l = Math.max(1, Math.round(def.valeur/8)) * (aime?2:1) + (def.rare?3:0);
@@ -234,7 +239,8 @@ function ouvrirHabitant(h){
     } else dem = `<div class="carte-demande"><small class="dit">« ${d.texte} »</small><b>${d.but}</b>${prog}<small>Se valide toute seule dès que c'est le cas. Récompense : ${d.don} 🌙 et une page de son histoire.</small></div>`;
   } else {
     const reste = h.demandes.find(x=>!hs.faites.includes(x.id));
-    dem = `<div class="carte-demande calme"><small>${reste ? `Pas de demande pour l'instant. La prochaine dans ${duree(Math.max(60,(hs.prochaine-Date.now())/1000))}.` : "Il ne demande plus rien. Il est là, c'est tout."}</small></div>`;
+    const der = h.demandes.find(x=>x.id===hs.faites[hs.faites.length-1]);
+    dem = (der ? `<div class="carte-demande calme"><small><b>Accomplie :</b> ${der.but}. ${der.histoire}</small></div>` : "") + `<div class="carte-demande calme"><small>${reste ? `Pas de demande pour l'instant. La prochaine dans ${duree(Math.max(60,(hs.prochaine-Date.now())/1000))}.` : "Il ne demande plus rien. Il est là, c'est tout."}</small></div>`;
   }
   const coeurs = `<div class="amitie" aria-label="Amitié ${am} sur 10">${Array.from({length:10},(_,i)=>`<i class="${i<am?"plein":""}"></i>`).join("")}</div>`;
   const dans = Object.keys(etat.panier).filter(k=>etat.panier[k]>0);
@@ -1508,7 +1514,8 @@ function tick(){
 function retour(){
   const dt = Math.min(43200,(Date.now()-dernierTick)/1000);
   TEMPSID = REGLES.temps(new Date()); PLUIE = tempsDef().pluie; PHASE = phaseDe(new Date()); rendreMeteo(); rendreNav();
-  collecte = []; if(bati("cabane") && !etat.cabaneFoyer){ etat.cabaneFoyer = 1; annoncer("Ta cabane a maintenant une cheminée : un feu de plus à l'atelier. Et une boîte aux lettres : une lettre de plus chaque matin, qui attend un jour de plus."); } majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
+  collecte = []; if(!etat.amitieRattrapee){ etat.amitieRattrapee = 1; for(const h of HABITANTS){ const hs=(etat.habitants||{})[h.id]; if(!hs) continue; const n = (hs.faites||[]).filter(id=>{ const d=h.demandes.find(x=>x.id===id); return d && !d.offrir; }).length; if(n) hs.amitie = Math.min(10, (hs.amitie||0) + 2*n); } }
+  if(bati("cabane") && !etat.cabaneFoyer){ etat.cabaneFoyer = 1; annoncer("Ta cabane a maintenant une cheminée : un feu de plus à l'atelier. Et une boîte aux lettres : une lettre de plus chaque matin, qui attend un jour de plus."); } majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
   if(dt<120){ const notes=collecte; collecte=null; notes.forEach(dire); tick(); return; }
   const murs = ()=>ZONES.reduce((n,z)=>n+etat.zones[z.id].pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length,0);
   const avant = murs();
@@ -1672,7 +1679,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.2";
+const VERSION_APP="0.16.3";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
