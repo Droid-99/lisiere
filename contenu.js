@@ -610,6 +610,10 @@ CONTENU.LIVRES = [
 ];
 
 CONTENU.ETALS = [
+  /* la nuit, de minuit à 4 h, les étals sont vides ; sauf un. Il ne veut pas d'or : il veut des lunes. */
+  {id:"etranger", nom:"L'étranger capuché", metier:"on ne sait pas d'où", emoji:"🧥", nuit:true, jours:[0,1,2,3,4,5,6], monnaie:"lunes",
+   phrase:"Je ne reste pas. Prends ou laisse. L'or ne m'intéresse pas ; la lune, si.",
+   vend:[["mystere",25,1],["graine",40,1],["nacre",8,2],["miel",6,2]]},
   {id:"firmin", nom:"Firmin", metier:"le menuisier", emoji:"🪚", jours:[2,4,6],
    phrase:"Du chêne de la scierie, sec depuis deux hivers. Je le scie à la demande, mais pas trop vite.",
    vend:[["bois",8,8],["scie",60,null,1]], fidelite:12,

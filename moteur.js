@@ -657,9 +657,9 @@ let sousComptoir = "courrier";
 
 /* ---------- étals des gens de Saint-Aubin : matériaux et outils, abonnements de livraison ---------- */
 const hachage = t => { let h=2166136261; for(const ch of t){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619)>>>0; } return h; };
-const nomArticle = id => id==="graine" ? "Graine de fleur de lune" : MATIERES[id] ? MATIERES[id].nom : defObjet(id).nom;
-const emojiArticle = id => id==="graine" ? "🌼" : MATIERES[id] ? MATIERES[id].emoji : defObjet(id).emoji;
-const possede = id => id==="graine" ? etat.graines : qte(id);
+const nomArticle = id => id==="graine" ? "Graine de fleur de lune" : id==="mystere" ? "Graine mystère" : MATIERES[id] ? MATIERES[id].nom : defObjet(id).nom;
+const emojiArticle = id => id==="graine" ? "🌼" : id==="mystere" ? "❔" : MATIERES[id] ? MATIERES[id].emoji : defObjet(id).emoji;
+const possede = id => id==="graine" ? etat.graines : id==="mystere" ? (etat.mysteres||0) : qte(id);
 /* Mathilde, la maraîchère : produits du potager et de la mare (jamais la fleur de lune ni les variantes rares).
    Chaque jour de marché, cinq produits tirés au sort, plus ceux que la ville ou un habitant te demande et que tu n'as pas.
    Prix : 1,6 fois ce que le colporteur en donne (on ne gagne rien à revendre). Stock : beaucoup de petits, peu de gros. */
@@ -682,21 +682,29 @@ const periodeStock = (etal) => etal.id==="rose" ? "s"+Math.floor((Date.now()/864
 function resteEtal(etal, id, stock){ if(stock==null) return Infinity; const k = etal.id+":"+periodeStock(etal); return stock - ((etat.etals[k]||{})[id]||0); }
 function acheterEtal(etalId, id){
   const etal = ETALS.find(e=>e.id===etalId), art = etal && vendDe(etal).find(v=>v[0]===id); if(!art) return;
-  if(!present(etal)){ dire(`${etal.nom} n'est pas au marché aujourd'hui.`); return; }
+  if(!present(etal)){ dire(`${etal.nom} n'est pas au marché en ce moment.`); return; }
+  const lunes = etal.monnaie==="lunes", unite = lunes ? "🌙" : "🪙", bourse = () => lunes ? etat.lunes : etat.or;
   const [ , base, stock, max] = art, prix = prixDuJour(id, base);
   if(max && possede(id)>=max){ dire(`Tu as déjà ${MATIERES[id].g==="f"?"une":"un"} ${nomArticle(id).toLowerCase()}.`); return; }
   if(resteEtal(etal,id,stock)<=0){ dire(`${etal.nom} n'en a plus aujourd'hui.`); return; }
-  if(etat.or<prix){ dire(`Il te manque ${prix-etat.or} 🪙.`); return; }
-  etat.or -= prix; if(id==="graine") etat.graines++; else ajouter(id, 1); compterFidelite(etal);
+  if(bourse()<prix){ dire(`Il te manque ${prix-bourse()} ${unite}.`); return; }
+  if(lunes) etat.lunes -= prix; else etat.or -= prix;
+  if(id==="graine") etat.graines++; else if(id==="mystere") etat.mysteres=(etat.mysteres||0)+1; else ajouter(id, 1); compterFidelite(etal);
   const k = etal.id+":"+periodeStock(etal); etat.etals[k] = etat.etals[k]||{}; etat.etals[k][id] = (etat.etals[k][id]||0)+1;
   for(const cle in etat.etals){ const [eid, per] = cle.split(":"), e2 = ETALS.find(x=>x.id===eid); if(!e2 || per!==periodeStock(e2)) delete etat.etals[cle]; }
-  dire(MATIERES[id]||id==="graine" ? `${etal.nom} te vend ${MATIERES[id]&&MATIERES[id].g==="f"?"une":"un"} ${nomArticle(id).toLowerCase()}. −${prix} 🪙.` : `${etal.nom} te vend : ${nomArticle(id)}, dans ton panier. −${prix} 🪙.`); tinter(523); tinter(659,.1);
+  dire(MATIERES[id]||id==="graine"||id==="mystere" ? `${etal.nom} te vend ${(MATIERES[id]&&MATIERES[id].g==="f")||id==="graine"||id==="mystere"?"une":"un"} ${nomArticle(id).toLowerCase()}. −${prix} ${unite}.` : `${etal.nom} te vend : ${nomArticle(id)}, dans ton panier. −${prix} ${unite}.`); tinter(523); tinter(659,.1);
   sauver(); cleCourrier=""; rendre();
 }
 const JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
-const present = e => e.jours.includes(new Date().getDay());
-const joursTxt = e => { const n=e.jours.map(j=>"le "+JOURS[j]); return n.length>1 ? n.slice(0,-1).join(", ")+" et "+n[n.length-1] : n[0]; };
-const elle = e => e.nom.startsWith("Mme") || e.nom==="Rose";
+// le marché tient de 7 h à 19 h ; l'étranger capuché, lui, n'est là que de minuit à 4 h
+const OUVRE = 7, FERME = 19;
+const present = e => { const d = new Date(), h = d.getHours(); return e.nuit ? h < 4 : e.jours.includes(d.getDay()) && h >= OUVRE && h < FERME; };
+function absenceTxt(e){ const d = new Date(), h = d.getHours(), ceJour = e.jours.includes(d.getDay());
+  if(ceJour && h < OUVRE) return `Pas encore arrivé${elle(e)?"e":""}. Le marché ouvre à ${OUVRE} h.`;
+  if(ceJour && h >= FERME) return `Déjà rentré${elle(e)?"e":""}. Le marché ferme à ${FERME} h ; revient ${joursTxt(e)}.`;
+  return `Pas là aujourd'hui. Revient ${joursTxt(e)}.`; }
+const joursTxt = e => { if(e.nuit) return "de minuit à 4 h"; const n=e.jours.map(j=>"le "+JOURS[j]); return n.length>1 ? n.slice(0,-1).join(", ")+" et "+n[n.length-1] : n[0]; };
+const elle = e => e.nom.startsWith("Mme") || e.nom==="Rose" || e.nom==="Mathilde";
 // fidélité : chaque article acheté compte ; au seuil, le marchand propose d'envoyer un apprenti
 function fidelite(e){ return (etat.fidele||{})[e.id]||0; }
 function compterFidelite(e){
@@ -745,7 +753,7 @@ function htmlPostes(){
   }).join("");
 }
 function rendreEtals(){
-  return htmlPostes() + `<h3>Les étals de Saint-Aubin</h3><p class="intro">Matériaux, outils et produits frais. Chacun vient à ses jours, avec un stock limité ; les prix bougent un peu. À force d'acheter chez quelqu'un, il finit par proposer son apprenti.</p>` +
+  return htmlPostes() + `<h3>Les étals de Saint-Aubin</h3><p class="intro">Matériaux, outils et produits frais, de ${OUVRE} h à ${FERME} h. Chacun vient à ses jours, avec un stock limité ; les prix bougent un peu. À force d'acheter chez quelqu'un, il finit par proposer son apprenti.</p>` +
     ETALS.map(e=>{
       const tete = `<div class="tete">${portrait(e, true)}<div><b>${e.nom}</b><small>${e.metier} · ${joursTxt(e)}</small></div></div>`;
       let prop = "";
@@ -754,10 +762,11 @@ function rendreEtals(){
           <div class="ecoutes"><button class="choix" data-installer="${e.id}" aria-pressed="true" ${etat.or>=e.apprenti.niveaux[0].prix?"":"disabled"}>Installer · ${e.apprenti.niveaux[0].prix} 🪙</button><button class="choix" data-refuser="${e.id}">Non merci</button></div></div>`;
         else prop = `<button class="lienAbo" data-reprendre="${e.id}">Finalement, l'apprenti de ${e.nom} ?</button>`;
       }
-      if(!present(e)) return `<div class="etal ferme">${tete}<p class="parole">Pas là aujourd'hui. Revient ${joursTxt(e)}.</p>${prop}</div>`;
+      if(e.nuit && !present(e)) return "";   // l'étranger ne se montre qu'à ses heures
+      if(!present(e)) return `<div class="etal ferme">${tete}<p class="parole">${absenceTxt(e)}</p>${prop}</div>`;
       const voulu = e.maraichere ? new Set(demandesManquantes()) : new Set();
       const articles = vendDe(e).map(([id, base, stock, max])=>{ const prix=prixDuJour(id,base), reste=resteEtal(e,id,stock), a=possede(id), plein = max && a>=max;
-        return `<div class="article">${PLANTES[id] ? ico(id,"big") : `<span class="big">${emojiArticle(id)}</span>`}<div><b>${nomArticle(id)}</b><small>${prix} 🪙${stock!=null?` · ${Math.max(0,reste)} en stock`:""}${a?` · tu en as ${a}`:""}${voulu.has(id)?" · <em>demandé</em>":""}</small></div><button data-etal="${e.id}" data-art="${id}" ${plein||reste<=0||etat.or<prix?"disabled":""}>${plein?"Acquis":reste<=0?"Épuisé":"Acheter"}</button></div>`; }).join("");
+        return `<div class="article">${PLANTES[id] ? ico(id,"big") : `<span class="big">${emojiArticle(id)}</span>`}<div><b>${nomArticle(id)}</b><small>${prix} ${e.monnaie==="lunes"?"🌙":"🪙"}${stock!=null?` · ${Math.max(0,reste)} en stock`:""}${a?` · tu en as ${a}`:""}${voulu.has(id)?" · <em>demandé</em>":""}</small></div><button data-etal="${e.id}" data-art="${id}" ${plein||reste<=0||(e.monnaie==="lunes"?etat.lunes:etat.or)<prix?"disabled":""}>${plein?"Acquis":reste<=0?"Épuisé":"Acheter"}</button></div>`; }).join("");
       return `<div class="etal">${tete}<p class="parole">« ${e.phrase} »</p><div class="panier">${articles}</div>${prop}</div>`;
     }).join("");
 }
@@ -1735,7 +1744,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.17.6";
+const VERSION_APP="0.17.7";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
