@@ -1532,7 +1532,7 @@ function tick(){
   if(dt<=0) return;
   majPluie(); majChantier(); majCourrier(dt); majCuisson(); majDecouvertes();
   document.body.dataset.ciel = estSoleilLeve() ? "jour" : "nuit";
-  avancer(dt); rouler(Math.min(dt,2));
+  avancer(dt); if($("panneau").hidden) rouler(Math.min(dt,2));   // pendant une lecture (un panneau ouvert), les visiteurs attendent : personne ne part, personne n'arrive
   evenement(null); sauver(); rendre();
 }
 function retour(){
@@ -1703,7 +1703,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.9";
+const VERSION_APP="0.17.0";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
