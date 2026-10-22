@@ -1249,16 +1249,18 @@ function demarrerCalque(carte, svg){
   const cv = carte.querySelector("#calque"), c2 = cv.getContext("2d"); let nuages=[], gouttes=[], eclair=0;
   // tailles arrondies : une largeur fractionnaire (412,5 px) ne tient pas dans un canvas, et la comparer telle quelle
   // relançait taille() à chaque image, donc des nuages redessinés au hasard 60 fois par seconde (le « clignotement »)
-  const taille = ()=>{ const t=Math.round(+svg.getAttribute("width")||600), th=Math.round(+svg.getAttribute("height")||t); cv.width=t; cv.height=th; cv.style.width=t+"px"; cv.style.height=th+"px"; nuages=Array.from({length:7},(_,i)=>({x:Math.random()*t,y:t*(.02+Math.random()*.18),r:t*(.08+Math.random()*.1),v:t*(.00006+Math.random()*.0001)})); gouttes=Array.from({length:220},()=>({x:Math.random()*t,y:Math.random()*th,l:t*.012,v:t*.012})); };
+  const taille = ()=>{ const t=Math.round(+svg.getAttribute("width")||600), th=Math.round(+svg.getAttribute("height")||t); cv.width=t; cv.height=th; cv.style.width=t+"px"; cv.style.height=th+"px"; nuages=Array.from({length:7},(_,i)=>({x:Math.random()*t,y:t*(.02+Math.random()*.18),r:t*(.08+Math.random()*.1),v:t*(.002+Math.random()*.002)})); gouttes=Array.from({length:220},()=>({x:Math.random()*t,y:Math.random()*th,l:t*.012,v:t*.012})); };
   taille(); addEventListener("resize", ()=>setTimeout(taille,60));
   const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let avant = 0;   // vitesse des nuages : en largeur de carte par seconde, quatre à huit minutes pour la traverser
   function boucle(ts){
     if(!cv.isConnected) return;
+    const dt = avant ? Math.min(.1, (ts-avant)/1000) : 0; avant = ts;   // au temps réel, pas à l'image (60 ou 120 Hz)
     const tv=Math.round(+svg.getAttribute("width")||600); if(Math.abs(cv.width-tv)>1) taille();
     const t=cv.width, th=cv.height; c2.clearRect(0,0,t,th);
     if(TEMPSID==="nuageux" || TEMPSID==="tempete"){
       c2.fillStyle = TEMPSID==="tempete" ? "rgba(20,24,34,.55)" : (nuit() ? "rgba(40,46,60,.45)" : "rgba(235,238,242,.5)");
-      for(const n of nuages){ if(!reduit){ n.x += n.v*16*(TEMPSID==="tempete"?4:1); if(n.x-n.r*2>t) n.x=-n.r*2; }
+      for(const n of nuages){ if(!reduit){ n.x += n.v*dt*(TEMPSID==="tempete"?4:1); if(n.x-n.r*2>t) n.x=-n.r*2; }
         for(const [dx,dy,k] of [[0,0,1],[-.9,.25,.7],[.9,.3,.75],[.3,-.2,.6]]) { c2.beginPath(); c2.ellipse(n.x+dx*n.r,n.y+dy*n.r,n.r*k*1.5,n.r*k,0,0,7); c2.fill(); } }
     }
     if(TEMPSID==="brume"){ const g=c2.createLinearGradient(0,th*.3,0,th); g.addColorStop(0,"rgba(200,210,222,0)"); g.addColorStop(1,"rgba(200,210,222,.45)"); c2.fillStyle=g; c2.fillRect(0,0,t,th); }
@@ -1561,7 +1563,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.6";
+const VERSION_APP="0.15.7";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
