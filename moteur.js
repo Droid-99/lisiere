@@ -1247,12 +1247,14 @@ function majChantier(){
 /* calque météo par-dessus la carte : nuages, brume, pluie, éclairs */
 function demarrerCalque(carte, svg){
   const cv = carte.querySelector("#calque"), c2 = cv.getContext("2d"); let nuages=[], gouttes=[], eclair=0;
-  const taille = ()=>{ const t=+svg.getAttribute("width")||600, th=+svg.getAttribute("height")||t; cv.width=t; cv.height=th; cv.style.width=t+"px"; cv.style.height=th+"px"; nuages=Array.from({length:7},(_,i)=>({x:Math.random()*t,y:t*(.02+Math.random()*.18),r:t*(.08+Math.random()*.1),v:t*(.00006+Math.random()*.0001)})); gouttes=Array.from({length:220},()=>({x:Math.random()*t,y:Math.random()*th,l:t*.012,v:t*.012})); };
+  // tailles arrondies : une largeur fractionnaire (412,5 px) ne tient pas dans un canvas, et la comparer telle quelle
+  // relançait taille() à chaque image, donc des nuages redessinés au hasard 60 fois par seconde (le « clignotement »)
+  const taille = ()=>{ const t=Math.round(+svg.getAttribute("width")||600), th=Math.round(+svg.getAttribute("height")||t); cv.width=t; cv.height=th; cv.style.width=t+"px"; cv.style.height=th+"px"; nuages=Array.from({length:7},(_,i)=>({x:Math.random()*t,y:t*(.02+Math.random()*.18),r:t*(.08+Math.random()*.1),v:t*(.00006+Math.random()*.0001)})); gouttes=Array.from({length:220},()=>({x:Math.random()*t,y:Math.random()*th,l:t*.012,v:t*.012})); };
   taille(); addEventListener("resize", ()=>setTimeout(taille,60));
   const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function boucle(ts){
     if(!cv.isConnected) return;
-    const tv=+svg.getAttribute("width")||600; if(cv.width!==tv) taille();
+    const tv=Math.round(+svg.getAttribute("width")||600); if(Math.abs(cv.width-tv)>1) taille();
     const t=cv.width, th=cv.height; c2.clearRect(0,0,t,th);
     if(TEMPSID==="nuageux" || TEMPSID==="tempete"){
       c2.fillStyle = TEMPSID==="tempete" ? "rgba(20,24,34,.55)" : (nuit() ? "rgba(40,46,60,.45)" : "rgba(235,238,242,.5)");
@@ -1266,6 +1268,8 @@ function demarrerCalque(carte, svg){
     if(TEMPSID==="tempete"){ if(eclair>0){ c2.fillStyle=`rgba(255,255,255,${eclair})`; c2.fillRect(0,0,t,th); eclair-=.06; } else if(Math.random()<.004) eclair=.6; }
     if(!reduit) requestAnimationFrame(boucle);
   }
+  cv.dataset.boucle = (+cv.dataset.boucle||0) + 1; const moi = cv.dataset.boucle;   // une seule boucle par calque
+  const b0 = boucle; boucle = ts => { if(cv.dataset.boucle!==moi) return; b0(ts); };
   requestAnimationFrame(boucle);
 }
 
@@ -1557,7 +1561,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.5";
+const VERSION_APP="0.15.6";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
