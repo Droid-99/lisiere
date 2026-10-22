@@ -1095,6 +1095,7 @@ function construireCarte(){
       <g id="carteRepli">${bois}${terres}${etang}${sentier}</g>
       ${zonesClic}
       <g id="fete" pointer-events="none"></g>
+      <g id="objetsCarte" pointer-events="none"></g>
       <g id="slots">${slots}</g>
       <g id="postes">${ETALS.filter(e=>e.apprenti).map(e=>`<g class="slot poste" data-p="${e.id}" role="button" aria-label="${e.apprenti.nom}" transform="translate(${w*e.apprenti.ix/100} ${h*e.apprenti.iy/100})"></g>`).join("")}</g>
       <g id="passant" class="passant"></g>
@@ -1153,7 +1154,7 @@ function rendreVillage(){
   const ch = etat.village.chantier, now = Date.now();
   const soleilLeve = estSoleilLeve();
   const vis = etat.ville.lettres.find(l=>l.enPersonne), fete = feteActive();
-  const cle = JSON.stringify([Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
+  const cle = JSON.stringify([Object.keys(etat.objets||{}), Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
   if(cle===cleVillage){ rendreSeuil(); return; } cleVillage = cle;   // le résumé suit les pots à chaque instant (il ne se réécrit que s'il change)
   { const {w,h} = CARTE, g = $("village").querySelector("#passant");
     if(vis){ const p = pnjDe(vis.pnj), T = w*.13; g.innerHTML = `<circle cx="${w*.47}" cy="${h*.86}" r="${w*.05}" fill="#f4d58a" opacity=".25"><animate attributeName="r" values="${w*.045};${w*.06};${w*.045}" dur="2.4s" repeatCount="indefinite"/></circle>` + (IMG ? `<image href="img/pnj-${p.id}.webp" x="${w*.47-T/2}" y="${h*.89-T}" width="${T}" height="${T}"></image>` : `<text x="${w*.47}" y="${h*.88}" font-size="${w*.06}" text-anchor="middle">${p.emoji}</text>`) + `<circle cx="${w*.505}" cy="${h*.80}" r="${w*.012}" fill="#f4d58a"/><text x="${w*.505}" y="${h*.806}" font-size="${w*.016}" text-anchor="middle" font-weight="700" fill="#141a2e">!</text>`; g.setAttribute("aria-label", `${p.nom} attend près du sentier`); g.setAttribute("role","button"); }
@@ -1167,6 +1168,10 @@ function rendreVillage(){
         return halo + (IMG ? `<image href="img/denree-lanterne.webp" x="${cx-T/2}" y="${cy-T*.85}" width="${T}" height="${T}" ${sombre?"":"opacity=\".95\""}></image>` : `<text x="${cx}" y="${cy}" font-size="${T*.8}" text-anchor="middle">🎃</text>`); }).join("")
         + `<defs><radialGradient id="haloCitr"><stop offset="0" stop-color="#ffb75a" stop-opacity=".55"/><stop offset="1" stop-color="#ffb75a" stop-opacity="0"/></radialGradient></defs>`; }
     else fg.innerHTML = ""; }
+  // les objets fabriqués à l'atelier se posent sur la carte
+  { const {w,h} = CARTE, og = $("village").querySelector("#objetsCarte"), PL = {banc:[.43,.47,.075], lanterne:[.43,.9,.06], nichoir:[.79,.24,.06], tonneau:[.585,.62,.055]};
+    if(og) og.innerHTML = OBJETS.filter(o=>etat.objets[o.id] && PL[o.id]).map(o=>{ const [x,y,k]=PL[o.id], T=w*k;
+      return IMG ? `<image href="img/objet-${o.id}.webp" x="${w*x-T/2}" y="${h*y-T*.8}" width="${T}" height="${T}"></image>` : `<text x="${w*x}" y="${h*y}" font-size="${T*.8}" text-anchor="middle">${o.emoji}</text>`; }).join(""); }
   for(const b of BATIMENTS){
     const g = $("village").querySelector(`.slot[data-b="${b.id}"]`); if(!g) continue;
     const fini = bati(b.id), enCours = ch && ch.id===b.id;
@@ -1703,7 +1708,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.17.0";
+const VERSION_APP="0.17.1";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

@@ -388,8 +388,8 @@ CONTENU.AMELIORATIONS = [
    texte:"Plus de chances qu'une récolte sorte en variante rare : +4 points par niveau.", effet:n=>({rare:.04*n})},
   {id:"the",    nom:"Thé pour les visiteurs", emoji:"🫖", niveaux:[15,40],
    texte:"Les visiteurs restent plus longtemps sur le sentier : +30 % par niveau.", effet:n=>({dureeVisite:1+.3*n})},
-  {id:"feu",    nom:"Second feu", emoji:"🔥", niveaux:[80],
-   texte:"Un deuxième feu dans le poêle de l'atelier : deux plats peuvent cuire en même temps.", effet:n=>({feux:n})},
+  {id:"feu",    nom:"Un feu de plus", emoji:"🔥", niveaux:[80],
+   texte:"Un feu de plus dans le poêle : un plat de plus peut cuire en même temps.", effet:n=>({feux:n})},
   {id:"boite",  nom:"Boîte aux lettres peinte", emoji:"📮", niveaux:[20,50],
    texte:"Anselme laisse une lettre de plus chaque matin, par niveau.", effet:n=>({lettres:n})},
 ];
