@@ -185,8 +185,8 @@ span.big img{width:2.4rem;height:2.4rem;display:block;object-fit:contain}
 /* ---------- bandeaux translucides : en-tête, ligne de temps et message flottent sur le contenu ; la barre du bas reste pleine ---------- */
 .app{--hautH:60px;--hautM:44px;--hautT:34px}
 #contenu{position:relative}
-#entete{position:absolute;top:0;left:0;right:0;background:rgba(14,18,32,.52);backdrop-filter:blur(10px) saturate(1.1);-webkit-backdrop-filter:blur(10px) saturate(1.1);box-shadow:none;border-bottom:1px solid rgba(241,233,214,.08)}
-.msg{position:absolute;left:0;right:0;bottom:calc(var(--bas) + max(env(safe-area-inset-bottom,0px),8px));background:rgba(14,18,32,.52);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(241,233,214,.08);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#entete{position:absolute;top:0;left:0;right:0;background:rgba(14,18,32,.7);box-shadow:none;border-bottom:1px solid rgba(241,233,214,.08)}
+.msg{position:absolute;left:0;right:0;bottom:calc(var(--bas) + max(env(safe-area-inset-bottom,0px),8px));background:rgba(14,18,32,.72);border-top:1px solid rgba(241,233,214,.08);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #ecran-village{position:relative}
 #ecran-village .meteo{position:absolute;top:var(--hautH);left:0;right:0;z-index:3;margin:0;padding:7px var(--goutD) 7px var(--gout);background:rgba(14,18,32,.56);color:var(--fg);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #ecran-village .seuil{position:absolute;top:calc(var(--hautH) + var(--hautT));left:0;right:0;z-index:3;margin:0;padding:6px var(--goutD) 8px var(--gout);background:rgba(14,18,32,.56)}
@@ -307,7 +307,7 @@ body.illustre[data-zone="potager"][data-ciel="nuit"] .sentier{background-image:u
 body.illustre[data-zone="mare"][data-ciel="nuit"] .sentier{background-image:url(img/sentier-mare-nuit.webp)}
 body.illustre.pluie[data-zone="potager"] .sentier{background-image:url(img/sentier-potager-pluie.webp)}
 body.illustre.pluie[data-zone="mare"] .sentier{background-image:url(img/sentier-mare-pluie.webp)}
-body.illustre .sentier #sentierVide{background:rgba(14,18,32,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--fg);border-radius:14px;padding:5px 12px;font-size:.8rem;line-height:1.3;max-width:78%;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+body.illustre .sentier #sentierVide{background:rgba(14,18,32,.7);color:var(--fg);border-radius:14px;padding:5px 12px;font-size:.8rem;line-height:1.3;max-width:78%;text-shadow:0 1px 2px rgba(0,0,0,.5)}
 body.illustre .sentier .habitant img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
 .cuisson{display:flex;gap:12px;align-items:center;background:#4a3326;border-radius:16px;padding:10px 14px;margin-bottom:8px;box-shadow:inset 0 0 0 2px #e6a35c}
 .cuisson div{flex:1;min-width:0}
