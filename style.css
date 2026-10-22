@@ -423,3 +423,5 @@ details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6
 .livreArrive b{display:block;font-family:var(--display);font-size:1.15rem}
 .livreArrive small{color:var(--muted)}
 .couv.grande{width:56px;height:78px;border-radius:4px 8px 8px 4px;box-shadow:inset 6px 0 0 rgba(0,0,0,.25),0 4px 12px rgba(0,0,0,.35);transform:rotate(-4deg)}
+.cuisson.libre{background:transparent;box-shadow:none;border:2px dashed #e6a35c;opacity:.95}
+.cuisson.libre b{color:#f0c27a}

@@ -447,11 +447,11 @@ function rendreAtelier(){
   const cle = JSON.stringify([etat.matieres, Object.keys(etat.objets), etat.panier, etat.recettes, etat.decouvertes, etat.amelio, etat.lunes, feteActive(), etat.cuissons, Math.floor(Date.now()/30000)]); if(cle===cleAtelier) return; cleAtelier = cle;
   const libres = feuxMax() - etat.cuissons.length;
   const feu = etat.cuissons.map(x=>{ const r=RECETTES.find(y=>y.id===x.id), p=Math.min(1, 1-(x.fin-Date.now())/(r.cuisson*1000)); return `<div class="cuisson">${ico(x.id,"big")}<div><b>${DENREES[x.id].nom}</b><div class="barreProg"><i style="width:${Math.round(p*100)}%"></i></div><small>Prêt dans ${duree(Math.max(1,(x.fin-Date.now())/1000))}</small></div></div>`; }).join("")
-    + (libres>0 ? `<p class="intro">${etat.cuissons.length ? "Un feu est encore libre." : "Le feu est libre."} Choisis un plat ci-dessous.</p>` : "");
+    + Array.from({length:Math.max(0,libres)}, ()=>`<div class="cuisson libre"><span class="big">🔥</span><div><b>Feu libre</b><small>Choisis un plat ci-dessous pour le mettre à cuire.</small></div></div>`).join("");
   const decouvertes = RECETTES.filter(recetteDecouverte), cachees = RECETTES.filter(r=>!r.fete && !recetteDecouverte(r));
   const cuisine = decouvertes.map(r=>{
     const d = DENREES[r.id], connue = recetteConnue(r), peut = connue && aTout(r.ingr) && libres>0;
-    const action = connue ? `<button data-cuire="${r.id}" ${peut?"":"disabled"}>${libres>0?"Cuisiner":"Le feu est pris"}</button>` : `<button class="lune" data-apprendre="${r.id}" ${etat.lunes>=r.prix?"":"disabled"}>Apprendre · ${r.prix} 🌙</button>`;
+    const action = connue ? `<button data-cuire="${r.id}" ${peut?"":"disabled"}>${libres>0?"Cuisiner":feuxMax()>1?"Les feux sont pris":"Le feu est pris"}</button>` : `<button class="lune" data-apprendre="${r.id}" ${etat.lunes>=r.prix?"":"disabled"}>Apprendre · ${r.prix} 🌙</button>`;
     return `<div class="objet ${connue?"":"inconnue"}">${ico(r.id,"big")}<div><b>${d.nom}${r.fete?` <em class="saison">de saison</em>`:""}</b><small>${r.texte}</small><small class="cout">${listeEmoji(r.ingr)} · ${duree(r.cuisson)} de cuisson · se vend ${d.valeur} 🪙${(etat.panier[r.id]||0)?` · ${etat.panier[r.id]} au panier`:""}</small></div>${action}</div>`;
   }).join("") + cachees.map(r=>`<div class="objet cachee"><span class="big">❔</span><div><b>Recette inconnue</b><small>${r.indice||"Elle viendra."}</small></div></div>`).join("");
   const amel = AMELIORATIONS.map(x=>{
@@ -467,7 +467,7 @@ function rendreAtelier(){
   }).join("");
   const nbConnues = RECETTES.filter(r=>!r.fete && etat.recettes[r.id]).length, nbTot = RECETTES.filter(r=>!r.fete).length;
   a.innerHTML = `<p class="intro">${TEXTES.atelierIntro}</p>
-    <h3>🔥 Le feu <small>${etat.cuissons.length}/${feuxMax()}</small></h3>${feu}
+    <h3>🔥 ${feuxMax()>1?"Les feux":"Le feu"} <small>${libres>0?`${libres} libre${libres>1?"s":""} sur ${feuxMax()}`:feuxMax()>1?"tous pris":"pris"}</small></h3>${feu}
     <h3>🍳 Cuisine <small>${nbConnues}/${nbTot} recettes</small></h3><p class="intro">Une recette se découvre (l'histoire, les habitants, l'herbier, les bâtiments), puis s'apprend avec des lunes. Un plat cuit en temps réel et se vend bien plus cher que ses ingrédients.</p><div class="objets">${cuisine}</div>
     <h3>✨ Améliorations</h3><p class="intro">Elles se paient en lunes, celles que donnent les visiteurs et les habitants.</p><div class="objets">${amel}</div>
     <h3>🪚 Objets</h3><div class="matieres">${mats}</div><div class="objets">${objs}</div>`;
@@ -1700,7 +1700,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.7";
+const VERSION_APP="0.16.8";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
