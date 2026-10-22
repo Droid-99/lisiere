@@ -1282,6 +1282,18 @@ function relier(dt, jour){
     if(!l.defauts.length) tinter(523), tinter(659,.12), tinter(784,.24);
   }
 }
+const FEM = ["grenouille","abeille","coccinelle","chauvesouris","libellule","carpe"];
+const articleVisiteur = v => { const n = v.nom.toLowerCase(); return /^[aeiouyéè]/.test(n) && v.id!=="heron" && v.id!=="herisson" ? "l'"+n : (FEM.includes(v.id)?"la ":"le ")+n; };
+// un livre arrive : on le voit, avec ce qu'il a, et on peut aller tout de suite à la cabane
+function montrerLivre(l, par){
+  const x = cab().livres[l.id]; if(!x) return;
+  audio.effet("papier"); tinter(523); tinter(659,.15); tinter(784,.3);
+  const p = ouvrirPanneau(`<h2>📖 Un livre sur le seuil</h2><div class="corps"><div class="livreArrive">${couv(l, "grande")}<div><b>${l.titre}</b><small>${l.genre}${par?` · rapporté par ${articleVisiteur(par)}`:""}</small></div></div>
+    <p class="intro">Il a pris l'eau et la poussière du bois. Pour le lire, il faut d'abord le réparer :</p>
+    ${x.defauts.map(k=>`<div class="regle"><b>${DEFAUTS[k].emoji} ${DEFAUTS[k].nom}</b><small>${DEFAUTS[k].atelier} · ${besoinTxt(DEFAUTS[k].besoin)}</small></div>`).join("")}
+    <button class="fermer" id="versCabane">Aller à la cabane</button></div>`);
+  $("versCabane").addEventListener("click", ouvrirCabane);
+}
 function lancerReparation(id, def){
   const c = cab(), l = c.livres[id], D = DEFAUTS[def]; if(!l || !D || !l.defauts.includes(def)) return;
   if(c.travaux.filter(t=>t.defaut===def).length>=maxTravaux()){ dire(`${D.atelier} est occupé${D.atelier.startsWith("La ")?"e":""}.`); return; }
@@ -1437,10 +1449,12 @@ function saluer(){
   if(d.don.graine && etat.graines<2 && etat.graineJour!==auj && Math.random()<d.don.graine){ etat.graines++; etat.graineJour=auj; txt += " Une graine de fleur de lune roule à tes pieds."; }
   if(d.don.matiere && Math.random()<d.don.matiere.proba){ const m=d.don.matiere.id; etat.matieres[m]=(etat.matieres[m]||0)+1; txt += ` ${MATIERES[m].emoji} ${MATIERES[m].nom} : +1.`; }
   // parfois, une bête laisse un livre abandonné sur le seuil de la cabane
-  if(bati("cabane") && aReparer().length<3 && Math.random() < (amC("etageres") ? .14 : .07)){ const l = apporterLivre(); if(l) txt += ` Sur le seuil, un livre abîmé : « ${l.titre} ». Il t'attend dans la cabane.`; }
+  let livre = null;
+  if(bati("cabane") && aReparer().length<3 && Math.random() < (amC("etageres") ? .14 : .07)) livre = apporterLivre();
   etat.zones[z].visiteur = null; dire(txt); tinter(587); tinter(784,.1); tinter(988,.2);
   evenement({type:"salut", visiteur:d.id, fois:etat.visites[d.id]});
   sauver(); rendre(); rendreBarre();
+  if(livre) setTimeout(()=>montrerLivre(livre, d), 900);
 }
 function rouler(dt){
   const f = fx();
@@ -1683,7 +1697,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.5";
+const VERSION_APP="0.16.6";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

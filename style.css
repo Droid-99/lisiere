@@ -419,3 +419,7 @@ details.repli summary{cursor:pointer;font-weight:700;color:var(--moon);padding:6
 .atelierReliure>b{display:block;font-size:.92rem}
 .atelierReliure>small{color:var(--muted)}
 .atelierReliure .article{background:transparent;padding:6px 0 0}
+.livreArrive{display:flex;gap:14px;align-items:center;margin:6px 0 10px}
+.livreArrive b{display:block;font-family:var(--display);font-size:1.15rem}
+.livreArrive small{color:var(--muted)}
+.couv.grande{width:56px;height:78px;border-radius:4px 8px 8px 4px;box-shadow:inset 6px 0 0 rgba(0,0,0,.25),0 4px 12px rgba(0,0,0,.35);transform:rotate(-4deg)}
