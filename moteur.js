@@ -283,9 +283,9 @@ function allerA(id){
   effacerMsg();
   ZONE = id; document.body.dataset.zone = id;
   const z = zoneDef(id);
-  $("ecran-village").hidden = id!=="village"; $("ecran-zone").hidden = !z; $("ecran-atelier").hidden = id!=="atelier"; $("ecran-courrier").hidden = id!=="courrier"; $("ecran-carnet").hidden = id!=="carnet";
+  $("ecran-village").hidden = id!=="village"; $("ecran-zone").hidden = !z; $("ecran-atelier").hidden = id!=="atelier" && id!=="cuisine"; $("ecran-courrier").hidden = id!=="courrier"; $("ecran-carnet").hidden = id!=="carnet";
   $("retour").hidden = id==="village";
-  $("titre").textContent = z ? `${z.emoji} ${z.nom}` : id==="atelier" ? "🔨 L'atelier" : id==="courrier" ? "🧺 Le comptoir" : id==="carnet" ? "📖 Le carnet" : (etat.pleineLune ? TEXTES.titrePleine : TEXTES.titre);
+  $("titre").textContent = z ? `${z.emoji} ${z.nom}` : id==="atelier" ? "🔨 L'atelier" : id==="cuisine" ? "🍳 La cuisine" : id==="courrier" ? "🧺 Le comptoir" : id==="carnet" ? "📖 Le carnet" : (etat.pleineLune ? TEXTES.titrePleine : TEXTES.titre);
   cleAtelier = ""; cleCourrier = "";
   if(id==="village") construireCarte();
   if(z){ construirePots(z); const p=PLANTES[outil]; if(outil!=="eau" && (!p || p.zone!==z.id)) outil=z.graines[0]; if(outil==="eau" && !z.rosee) outil=z.graines[0]; }
@@ -340,7 +340,7 @@ function rendre(){
   if(IMG && !$("lune").dataset.ico){ $("lune").dataset.ico="1"; document.querySelector(".ico-lune").innerHTML=im("matiere-lune","ico"); document.querySelector(".ico-rosee").innerHTML=im("matiere-rosee","ico"); }
   $("matieres").innerHTML = ""; void mats;   // les matières se voient à l'atelier ; l'en-tête garde l'or, les lunes et la rosée
   if(z){ for(let i=0;i<z.nbPots;i++) majPot(i); majSentier(); }
-  else if(ZONE==="atelier") rendreAtelier();
+  else if(ZONE==="atelier" || ZONE==="cuisine") rendreAtelier();
   else if(ZONE==="courrier") rendreCourrier();
   else if(ZONE==="carnet"){ /* rendu à l'ouverture et au changement d'onglet */ }
   else rendreVillage();
@@ -444,7 +444,7 @@ function majCuisson(){
 }
 function rendreAtelier(){
   const a = $("atelier");
-  const cle = JSON.stringify([etat.matieres, Object.keys(etat.objets), etat.panier, etat.recettes, etat.decouvertes, etat.amelio, etat.lunes, feteActive(), etat.cuissons, Math.floor(Date.now()/30000)]); if(cle===cleAtelier) return; cleAtelier = cle;
+  const cle = JSON.stringify([etat.matieres, Object.keys(etat.objets), etat.panier, etat.recettes, etat.decouvertes, etat.amelio, etat.lunes, feteActive(), etat.cuissons, Math.floor(Date.now()/30000), ZONE]); if(cle===cleAtelier) return; cleAtelier = cle;
   const libres = feuxMax() - etat.cuissons.length;
   const feu = etat.cuissons.map(x=>{ const r=RECETTES.find(y=>y.id===x.id), p=Math.min(1, 1-(x.fin-Date.now())/(r.cuisson*1000)); return `<div class="cuisson">${ico(x.id,"big")}<div><b>${DENREES[x.id].nom}</b><div class="barreProg"><i style="width:${Math.round(p*100)}%"></i></div><small>Prêt dans ${duree(Math.max(1,(x.fin-Date.now())/1000))}</small></div></div>`; }).join("")
     + Array.from({length:Math.max(0,libres)}, ()=>`<div class="cuisson libre"><span class="big">🔥</span><div><b>Feu libre</b><small>Choisis un plat ci-dessous pour le mettre à cuire.</small></div></div>`).join("");
@@ -466,9 +466,12 @@ function rendreAtelier(){
     return `<div class="objet ${fait?"fait":""}"><span class="big">${IMG?im(`objet-${o.id}`,"big"):o.emoji}</span><div><b>${o.nom}</b><small>${o.texte}</small><small class="cout">${fait?"Fabriqué. Il est là pour de bon.":"Coût : "+cout}</small></div>${fait?"":`<button data-objet="${o.id}" ${peut?"":"disabled"}>Fabriquer</button>`}</div>`;
   }).join("");
   const nbConnues = RECETTES.filter(r=>!r.fete && etat.recettes[r.id]).length, nbTot = RECETTES.filter(r=>!r.fete).length;
-  a.innerHTML = `<p class="intro">${TEXTES.atelierIntro}</p>
+  // deux écrans : la cuisine (feux et recettes) et l'atelier (améliorations et objets)
+  if(ZONE==="cuisine") a.innerHTML = `<p class="intro">La cuisine transforme les récoltes. Un plat cuit en temps réel et se vend bien plus cher que ses ingrédients.</p>
     <h3>🔥 ${feuxMax()>1?"Les feux":"Le feu"} <small>${libres>0?`${libres} libre${libres>1?"s":""} sur ${feuxMax()}`:feuxMax()>1?"tous pris":"pris"}</small></h3>${feu}
-    <h3>🍳 Cuisine <small>${nbConnues}/${nbTot} recettes</small></h3><p class="intro">Une recette se découvre (l'histoire, les habitants, l'herbier, les bâtiments), puis s'apprend avec des lunes. Un plat cuit en temps réel et se vend bien plus cher que ses ingrédients.</p><div class="objets">${cuisine}</div>
+    <h3>📜 Recettes <small>${nbConnues}/${nbTot} connues</small></h3><p class="intro">Une recette se découvre (l'histoire, les habitants, l'herbier, les bâtiments), puis s'apprend avec des lunes. Un plat cuit en temps réel et se vend bien plus cher que ses ingrédients.</p><div class="objets">${cuisine}</div>
+`;
+  else a.innerHTML = `<p class="intro">Les améliorations se paient en lunes, et ce que les visiteurs laissent devient des objets.</p>
     <h3>✨ Améliorations</h3><p class="intro">Elles se paient en lunes, celles que donnent les visiteurs et les habitants.</p><div class="objets">${amel}</div>
     <h3>🪚 Objets</h3><div class="matieres">${mats}</div><div class="objets">${objs}</div>`;
   a.querySelectorAll("[data-objet]").forEach(b=>b.addEventListener("click",()=>fabriquer(b.dataset.objet)));
@@ -1437,7 +1440,7 @@ function majSentier(){
 }
 function arrivee(d){
   etat.zones[d.zone].visiteur = {id:d.id, reste:REGLES.dureeVisite*fx().dureeVisite};
-  const ailleurs = d.zone!==zoneJeu() || ZONE==="atelier";
+  const ailleurs = d.zone!==zoneJeu() || ZONE==="atelier" || ZONE==="cuisine";
   dire(`${d.nom} s'avance${ailleurs ? " ("+zoneDef(d.zone).nom.toLowerCase()+")" : ""}.`); tinter(392); tinter(494,.15); audio.cri(d.id);
 }
 function saluer(){
@@ -1700,7 +1703,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.8";
+const VERSION_APP="0.16.9";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
@@ -1754,7 +1757,7 @@ const audio = (function(){
   function contexte(){
     const s = etat.son, fixe = SONS.ecoutes.find(e=>e.id===s.ecoute && e.c);
     if(fixe) return Object.assign({phase:"jour", pluie:false, dedans:false, ruche:false, cabane:false}, fixe.c);
-    const lieu = s.lieux ? (ZONE==="village"||zoneDef(ZONE)||ZONE==="atelier"||ZONE==="courrier" ? ZONE : "village") : "village";
+    const lieu = s.lieux ? (ZONE==="cuisine" ? "atelier" : ZONE==="village"||zoneDef(ZONE)||ZONE==="atelier"||ZONE==="courrier" ? ZONE : "village") : "village";
     return {moment:PHASE.id, phase:PHASE.phase, temps:TEMPSID, pluie:PLUIE, lieu, dedans: lieu==="atelier"||lieu==="courrier", ruche:bati("ruche"), cabane:bati("cabane")};
   }
   const vg = g => etat.son.vol[g]||0;
