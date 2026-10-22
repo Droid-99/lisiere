@@ -347,7 +347,7 @@ function rendreMeteo(){
   document.body.dataset.phase = PHASE.phase; document.body.dataset.moment = PHASE.id; document.body.dataset.temps = TEMPSID; document.body.dataset.ciel = estSoleilLeve() ? "jour" : "nuit";
   const phrase = (etat.pleineLune && TEMPSID==="clair" && PHASE.phrasePleine) ? PHASE.phrasePleine : (PHASE.phrase[TEMPSID] || PHASE.phrase.clair);
   const fe = feteDef(); const pf = fe ? " " + ((PHASE.phase==="nuit"||PHASE.phase==="crepuscule") && fe.phraseNuit ? fe.phraseNuit : fe.phrase) : "";
-  $("meteo").textContent = `${PHASE.nom}${TEMPSID==="clair"?"":", "+tempsDef().nom.toLowerCase()}. ${phrase}${pf}`;
+  { const t = `${PHASE.nom}${TEMPSID==="clair"?"":", "+tempsDef().nom.toLowerCase()}. ${phrase}${pf}`; if($("meteo").textContent!==t) $("meteo").textContent = t; }
   $("luneBtn").setAttribute("aria-label", nuit() ? "La lune" : "Le soleil");
 }
 
@@ -1175,7 +1175,7 @@ function rendreVillage(){
   rendreSeuil();
 }
 function rendreSeuil(){
-  const s = $("seuil"); s.hidden=false; const plein = fx().seuil;
+  const s = $("seuil"); const plein = fx().seuil;
   const ch = etat.village.chantier, lignes=[];
   if(plein) for(const z of ZONES){ const pots=etat.zones[z.id].pots, prets=pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length, soif=pots.filter(p=>p.plante && besoin(PLANTES[p.plante])==="rosee" && p.eau<=0 && p.age<PLANTES[p.plante].duree).length, v=etat.zones[z.id].visiteur;
     const part=[]; if(prets) part.push(`${prets} à récolter`); if(soif) part.push(`${soif} qui ${soif>1?"ont":"a"} soif`); if(v){ const d=VISITEURS.find(x=>x.id===v.id); if(d) part.push(`${d.nom} est là`); }
@@ -1187,7 +1187,8 @@ function rendreSeuil(){
   if(nv) part.push(`<b>${nv} nouvelle${nv>1?"s":""} lettre${nv>1?"s":""}</b>`); if(pr) part.push(`${pr} prête${pr>1?"s":""} à livrer`); if(chp) part.push(`une lettre de l'histoire à lire`);
   if(part.length) lignes.push(`<span>✉️ ${part.join(" · ")}</span>`);
   if(vis) lignes.push(`<span>👋 <b>${pnjDe(vis.pnj).nom}</b> attend près du sentier</span>`);
-  s.innerHTML = lignes.join(""); s.hidden = !lignes.length;
+  // ne toucher au bandeau que s'il change : le réécrire à chaque seconde le faisait clignoter
+  const html = lignes.join(""); if(s.dataset.html!==html){ s.dataset.html = html; s.innerHTML = html; } if(s.hidden !== !lignes.length) s.hidden = !lignes.length;
 }
 function ouvrirBatiment(id){
   const b = BATIMENTS.find(x=>x.id===id), ch = etat.village.chantier, fini = bati(id), enCours = ch && ch.id===id;
@@ -1541,7 +1542,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.2";
+const VERSION_APP="0.15.3";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
