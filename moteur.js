@@ -290,6 +290,7 @@ function allerA(id){
   audio.rafraichir();
 }
 $("retour").addEventListener("click", ()=>allerA("village"));
+window.lisiereRetour = () => { const p = $("panneau"); if(p && !p.hidden){ p.hidden = true; return true; } if(ZONE!=="village"){ allerA("village"); return true; } return false; };
 document.querySelectorAll("#bas [data-aller]").forEach(b=>b.addEventListener("click", ()=>allerA(b.dataset.aller)));
 
 
@@ -1327,7 +1328,7 @@ function ouvrirCabane(){
     <h3>L'étagère <small>${repares.length}/${LIVRES.length}</small></h3>${etagere}
     <h3>Améliorer la cabane</h3>${ameli}</div>`;
   const pn = $("panneau"), page = pn.querySelector(".page");
-  if(!pn.hidden && page && page.dataset.vue==="cabane"){ const y = page.scrollTop; page.innerHTML = html + `<button class="fermer" id="fermerPanneau">Refermer</button>`; $("fermerPanneau").addEventListener("click",()=>{pn.hidden=true;}); page.scrollTop = y; }
+  if(!pn.hidden && page && page.dataset.vue==="cabane"){ const y = page.scrollTop; page.innerHTML = `<button class="fermerHaut" id="fermerPanneau" aria-label="Fermer">✕</button>` + html; $("fermerPanneau").addEventListener("click",()=>{pn.hidden=true;}); page.scrollTop = y; }
   else { ouvrirPanneau(html); pn.querySelector(".page").dataset.vue = "cabane"; }
   pn.querySelectorAll("[data-reparer]").forEach(b=>b.addEventListener("click",()=>lancerReparation(b.dataset.reparer, b.dataset.def)));
   pn.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireLivre(b.dataset.lire)));
@@ -1555,7 +1556,7 @@ $("luneBtn").addEventListener("click", ()=>{
 
 /* ---------- panneaux (carnet, son) ---------- */
 function ouvrirPanneau(html){
-  const c = $("panneau"); c.innerHTML = `<div class="page" role="dialog">${html}<button class="fermer" id="fermerPanneau">Refermer</button></div>`;
+  const c = $("panneau"); c.innerHTML = `<div class="page" role="dialog"><button class="fermerHaut" id="fermerPanneau" aria-label="Fermer">✕</button>${html}</div>`;
   c.hidden=false; $("fermerPanneau").addEventListener("click",()=>{c.hidden=true;}); $("fermerPanneau").focus({preventScroll:true}); c.querySelector(".page").scrollTop=0;
   c.onclick = e=>{ if(e.target===c) c.hidden=true; };
   return c;
@@ -1671,7 +1672,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.1";
+const VERSION_APP="0.16.2";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
