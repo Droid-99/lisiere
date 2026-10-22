@@ -89,14 +89,14 @@ const zoneJeu = () => zoneDef(ZONE) ? ZONE : "potager";
 /* ---------- effets des objets ---------- */
 const bati = id => !!etat.village.batis[id];
 function fx(){
-  const e = {dureeVisite:1, bonusLunes:0, periode:{}, roseeMax:0, regenRosee:1, pluieToujours:false, seuil:false, aubeLunes:0, aubeMatiere:[], aubeDenree:[], potsGratuits:{}, vitesse:{}, rare:0, lettres:0, feux:0};
+  const e = {dureeVisite:1, bonusLunes:0, periode:{}, roseeMax:0, regenRosee:1, pluieToujours:false, seuil:false, aubeLunes:0, aubeMatiere:[], aubeDenree:[], potsGratuits:{}, vitesse:{}, rare:0, lettres:0, feux:0, dureeLettres:0};
   const ams = AMELIORATIONS.filter(a=>etat.amelio[a.id]>0).map(a=>({effets:a.effet(etat.amelio[a.id])}));
   const actifs = [...OBJETS.filter(o=>etat.objets[o.id]), ...BATIMENTS.filter(b=>bati(b.id)), ...ams];
   for(const o of actifs){ const f=o.effets||{};
     if(f.dureeVisite) e.dureeVisite*=f.dureeVisite; if(f.bonusLunes) e.bonusLunes+=f.bonusLunes; if(f.roseeMax) e.roseeMax+=f.roseeMax;
     if(f.regenRosee) e.regenRosee*=f.regenRosee; if(f.pluieToujours) e.pluieToujours=true; if(f.seuil) e.seuil=true; if(f.aubeLunes) e.aubeLunes+=f.aubeLunes;
     if(f.aubeMatiere) e.aubeMatiere.push(f.aubeMatiere); if(f.aubeDenree) e.aubeDenree.push(f.aubeDenree);
-    if(f.rare) e.rare+=f.rare; if(f.lettres) e.lettres+=f.lettres; if(f.feux) e.feux+=f.feux;
+    if(f.rare) e.rare+=f.rare; if(f.lettres) e.lettres+=f.lettres; if(f.feux) e.feux+=f.feux; if(f.dureeLettres) e.dureeLettres+=f.dureeLettres;
     for(const z in (f.vitesse||{})) e.vitesse[z]=(e.vitesse[z]||1)*f.vitesse[z];
     for(const k in (f.periode||{})) e.periode[k]=(e.periode[k]||1)*f.periode[k];
     for(const z in (f.potsGratuits||{})) e.potsGratuits[z]=[...(e.potsGratuits[z]||[]), ...f.potsGratuits[z]]; }
@@ -516,7 +516,7 @@ function nouvelleLettre(pnj, enPersonne){
     items[id] = enPersonne ? Math.max(1, Math.min(a, qte(id)||a)) : a+Math.floor(Math.random()*(b-a+1)); }
   const val = Object.keys(items).reduce((t,k)=>t+defObjet(k).valeur*items[k],0);
   const long = Object.keys(items).some(k=>{ const p=PLANTES[k]; const r=RECETTES.find(x=>x.id===k); return (p && p.duree>=18000) || (r && Object.keys(r.ingr).some(i=>PLANTES[i] && PLANTES[i].duree>=18000)); });
-  const heures = enPersonne ? 4 : long ? 72 : 48;
+  const heures = enPersonne ? 4 : (long ? 72 : 48) + fx().dureeLettres;
   if(!enPersonne){ const v=etat.ville; v.recentes = [...(v.recentes||[]), {pnj:pnj.id, k:Object.keys(items)}].slice(-10); }
   return {id:++etat.ville.nid, pnj:pnj.id, items, or:Math.ceil(val*(enPersonne?2:1.5)+4), lunes:Math.random()<.3?2:0,
     fin:Date.now()+heures*3600000, raison:hasard(pnj.raisons), parole:enPersonne?hasard(pnj.paroles):"", enPersonne:!!enPersonne};
@@ -1399,7 +1399,7 @@ function tick(){
 function retour(){
   const dt = Math.min(43200,(Date.now()-dernierTick)/1000);
   TEMPSID = REGLES.temps(new Date()); PLUIE = tempsDef().pluie; PHASE = phaseDe(new Date()); rendreMeteo(); rendreNav();
-  collecte = []; majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
+  collecte = []; if(bati("cabane") && !etat.cabaneFoyer){ etat.cabaneFoyer = 1; annoncer("Ta cabane a maintenant une cheminée : un feu de plus à l'atelier. Et une boîte aux lettres : une lettre de plus chaque matin, qui attend un jour de plus."); } majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
   if(dt<120){ const notes=collecte; collecte=null; notes.forEach(dire); tick(); return; }
   const murs = ()=>ZONES.reduce((n,z)=>n+etat.zones[z.id].pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length,0);
   const avant = murs();
@@ -1563,7 +1563,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.15.8";
+const VERSION_APP="0.15.9";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,

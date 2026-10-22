@@ -503,8 +503,8 @@ CONTENU.OBJETS = [
 */
 CONTENU.BATIMENTS = [
   {id:"cabane", nom:"La cabane", emoji:"🛖", x:50, y:56, ix:50, iy:58, prix:150, materiaux:{bois:10, clous:6}, outils:["marteau","scie"], jours:1,
-   texte:"Une cabane de planches au centre de la clairière. C'est le seuil : de là on voit tout ce qui est prêt, et la mare s'ouvre à qui a un toit.",
-   effets:{seuil:true}, histoire:"La première nuit dans la cabane, il a plu sur le toit de bardeaux. Tu n'as rien fait d'autre qu'écouter."},
+   texte:"Une cabane de planches au centre de la clairière, à toi. Sa cheminée te donne un feu de plus pour cuisiner. Anselme dépose une lettre de plus chaque matin dans sa boîte, et les lettres y attendent un jour de plus. Depuis son seuil, la carte résume ce qui est prêt ; la mare s'ouvre à qui a un toit.",
+   effets:{seuil:true, feux:1, lettres:1, dureeLettres:24}, histoire:"La première nuit dans la cabane, il a plu sur le toit de bardeaux. Tu n'as rien fait d'autre qu'écouter."},
   {id:"puits", nom:"Le puits", emoji:"🪣", x:36, y:62, ix:38, iy:50, prix:400, materiaux:{pierre:12, bois:3}, outils:["marteau","truelle"], jours:2,
    texte:"Un puits de pierre près des terres. La réserve de rosée gagne trois gouttes.",
    effets:{roseeMax:3}, histoire:"L'eau du puits est froide même en plein été. Le chat y boit en équilibre sur la margelle, ce qui n'inquiète que toi."},
