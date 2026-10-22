@@ -1210,7 +1210,7 @@ function rendreSeuil(){
   if(part.length) lignes.push(`<span>✉️ ${part.join(" · ")}</span>`);
   if(vis) lignes.push(`<span>👋 <b>${pnjDe(vis.pnj).nom}</b> attend près du sentier</span>`);
   if(etat.cabane){ const c=etat.cabane, t=c.travaux[0], ab=aReparer().length, nonLus=LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length && !c.lus[l.id]).length, part=[];
-    if(t) part.push(`établi : encore ${duree(Math.max(60, t.reste/(amC("presse")?2:1)))}`); const abL = aReparer().filter(id=>!c.travaux.some(x=>x.livre===id)).length; if(abL) part.push(`${abL} livre${abL>1?"s":""} à réparer`);
+    if(t) part.push(c.travaux.length>1 ? `${c.travaux.length} ateliers au travail` : `atelier : encore ${duree(Math.max(60, t.reste/(amC("presse")?2:1)))}`); const abL = aReparer().filter(id=>!c.travaux.some(x=>x.livre===id)).length; if(abL) part.push(`${abL} livre${abL>1?"s":""} à réparer`);
     if(nonLus) part.push(`<b>${nonLus} à lire</b>`);
     if(part.length) lignes.push(`<span>🛖 <b>Cabane</b> · ${part.join(", ")}</span>`); }
   // ne toucher au bandeau que s'il change : le réécrire à chaque seconde le faisait clignoter
@@ -1247,7 +1247,7 @@ const LIVRES = CONTENU.LIVRES, DEFAUTS = CONTENU.DEFAUTS_LIVRE, AMC = CONTENU.AM
 const cab = () => (etat.cabane = etat.cabane || {livres:{}, travaux:[], ameli:{}, lus:{}});
 const amC = id => !!(etat.cabane && etat.cabane.ameli[id]);
 const livreDef = id => LIVRES.find(l=>l.id===id);
-const maxTravaux = () => amC("etabli2") ? 2 : 1;
+const maxTravaux = () => amC("etabli2") ? 2 : 1;   // par atelier (couture, séchoir, presse, bassine)
 const aReparer = () => Object.keys(cab().livres).filter(id=>cab().livres[id].defauts.length);
 function nomBesoin(k){ return MATIERES[k] ? MATIERES[k].nom.toLowerCase() : defObjet(k).nom.toLowerCase(); }
 function besoinTxt(b){ const k=Object.keys(b); return k.length ? k.map(x=>`${b[x]} ${plur(nomBesoin(x), b[x])}`).join(", ") : "rien que du temps"; }
@@ -1284,12 +1284,12 @@ function relier(dt, jour){
 }
 function lancerReparation(id, def){
   const c = cab(), l = c.livres[id], D = DEFAUTS[def]; if(!l || !D || !l.defauts.includes(def)) return;
-  if(c.travaux.length>=maxTravaux()){ dire("L'établi est occupé."); return; }
-  if(c.travaux.some(t=>t.livre===id)){ dire("Ce livre est déjà sur l'établi."); return; }
+  if(c.travaux.filter(t=>t.defaut===def).length>=maxTravaux()){ dire(`${D.atelier} est occupé${D.atelier.startsWith("La ")?"e":""}.`); return; }
+  if(c.travaux.some(t=>t.livre===id)){ dire("Ce livre est déjà à un atelier."); return; }
   for(const k in D.besoin) if(qte(k)<D.besoin[k]){ dire(`Il te faut ${besoinTxt(D.besoin)}.`); return; }
   for(const k in D.besoin) retirer(k, D.besoin[k]);
   c.travaux.push({livre:id, defaut:def, reste:D.duree});
-  dire(`${D.geste} : « ${livreDef(id).titre} » est sur l'établi.`); tinter(392); tinter(494,.12);
+  dire(`${D.atelier} : « ${livreDef(id).titre} ». ${D.geste}.`); tinter(392); tinter(494,.12);
   sauver(); rendre(); ouvrirCabane();
 }
 function lireLivre(id){
@@ -1317,22 +1317,24 @@ function ameliorerCabane(id){
 const couv = (d, cls="") => `<span class="couv ${cls}" style="--c:${d.couleur}"></span>`;
 function ouvrirCabane(){
   const c = cab(), jour = estSoleilLeve(), repos = !jour && !amC("lampe");
-  const travaux = c.travaux.map(t=>{ const d=livreDef(t.livre), D=DEFAUTS[t.defaut], v=amC("presse")?2:1, pc=Math.max(0, Math.min(100, Math.round(100*(1-t.reste/D.duree))));
+  const carteTravail = t=>{ const d=livreDef(t.livre), D=DEFAUTS[t.defaut], v=amC("presse")?2:1, pc=Math.max(0, Math.min(100, Math.round(100*(1-t.reste/D.duree))));
     const L = c.livres[t.livre], n = Math.max(L.total||0, L.defauts.length), k = n - L.defauts.length + 1;
-    return `<div class="article">${couv(d)}<div><b>${d.titre}</b><small>Étape ${k}/${n} · ${D.geste} · ${repos?"l'établi se repose jusqu'au matin":"encore "+duree(Math.max(60,t.reste/v))}</small><span class="jauge"><i style="width:${pc}%"></i></span></div></div>`; }).join("");
-  const libres = maxTravaux() - c.travaux.length;
+    return `<div class="article">${couv(d)}<div><b>${d.titre}</b><small>Étape ${k}/${n} · ${D.geste} · ${repos?"l'établi se repose jusqu'au matin":"encore "+duree(Math.max(60,t.reste/v))}</small><span class="jauge"><i style="width:${pc}%"></i></span></div></div>`; };
+  const ateliers = Object.keys(DEFAUTS).map(k=>{ const D=DEFAUTS[k], ts=c.travaux.filter(t=>t.defaut===k);
+    return `<div class="atelierReliure"><b>${D.emoji} ${D.atelier}</b>${ts.length ? ts.map(carteTravail).join("") : `<small>Libre.</small>`}</div>`; }).join("");
+  const libre = k => c.travaux.filter(t=>t.defaut===k).length < maxTravaux();
   const enAttente = aReparer().filter(id=>!c.travaux.some(t=>t.livre===id));   // un livre sur l'établi n'est plus « à réparer »
   const abimes = enAttente.map(id=>{ const d=livreDef(id), l=c.livres[id], enCours=c.travaux.some(t=>t.livre===id);
     return `<div class="livreAbime">${couv(d)}<div><b>${d.titre}</b><small>${d.genre}${enCours?" · sur l'établi":""}</small>${l.defauts.map(k=>{ const D=DEFAUTS[k], ok=Object.keys(D.besoin).every(x=>qte(x)>=D.besoin[x]);
-      return `<div class="defaut"><span><b>${D.nom}</b><small>${D.geste} · ${besoinTxt(D.besoin)} · ${duree(D.duree/(amC("presse")?2:1))}</small></span><button data-reparer="${id}" data-def="${k}" ${(!libres||enCours||!ok)?"disabled":""}>Réparer</button></div>`; }).join("")}</div></div>`; }).join("");
+      return `<div class="defaut"><span><b>${D.nom}</b><small>${D.emoji} ${D.geste} · ${besoinTxt(D.besoin)} · ${duree(D.duree/(amC("presse")?2:1))}</small></span><button data-reparer="${id}" data-def="${k}" ${(!libre(k)||enCours||!ok)?"disabled":""}>${libre(k)?"Réparer":"Occupé"}</button></div>`; }).join("")}</div></div>`; }).join("");
   const repares = LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length);
   const dos = LIVRES.map(l=>{ const x=c.livres[l.id]; if(x && !x.defauts.length) return `<button class="dos" style="--c:${l.couleur}" data-lire="${l.id}" aria-label="${l.titre}"><span>${l.titre}</span>${c.lus[l.id]?"":"<i></i>"}</button>`; return `<span class="dos vide"></span>`; });
   const etagere = [0,10].map(i=>`<div class="etagere">${dos.slice(i,i+10).join("")}</div>`).join("");
   const ameli = AMC.map(a=>amC(a.id) ? `<div class="regle"><b>✓ ${a.nom}</b><small>${a.effet}</small></div>` : `<div class="regle"><b>${a.nom}</b><small>${a.effet}</small><div class="besoins">${besoinsBatiment(a)}</div><button class="choix" data-ameli="${a.id}" ${manqueBatiment(a).length?"disabled":""}>Installer</button></div>`).join("");
   const html = `<h2>🛖 La cabane</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
-    <p class="intro">Un établi, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare.</p>
+    <p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare.</p>
     <h3>À réparer <small>${enAttente.length}</small></h3>${abimes || `<p class="intro">${c.travaux.length ? "Rien d'autre à réparer." : "Rien à réparer."} Salue les visiteurs : il arrive qu'ils laissent un livre sur le seuil.</p>`}
-    <h3>En réparation <small>${c.travaux.length}/${maxTravaux()}</small></h3>${travaux || `<p class="intro">L'établi est libre. Choisis un défaut à réparer ci-dessus.</p>`}${repos && c.travaux.length ? `<p class="intro">La nuit, l'établi se repose. Une lampe de travail permettrait de continuer.</p>` : ""}
+    <h3>Les ateliers</h3>${repos && c.travaux.length ? `<p class="intro">La nuit, les ateliers se reposent. Une lampe de travail permettrait de continuer.</p>` : ""}${ateliers}
     <h3>L'étagère <small>${repares.length}/${LIVRES.length}</small></h3>${etagere}
     <h3>Améliorer la cabane</h3>${ameli}</div>`;
   const pn = $("panneau"), page = pn.querySelector(".page");
@@ -1681,7 +1683,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.16.4";
+const VERSION_APP="0.16.5";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
