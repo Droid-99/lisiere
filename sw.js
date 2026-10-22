@@ -1,5 +1,5 @@
 /* Version web : garde le jeu en cache pour qu'il s'ouvre même sans réseau. Le marché, lui, passe toujours par le réseau. */
-const VERSION = "lisiere-0.17.1";
+const VERSION = "lisiere-0.17.2";
 self.addEventListener("install", e => { self.skipWaiting(); e.waitUntil(caches.open(VERSION).then(c => c.addAll(["./", "index.html", "style.css", "config.js", "reseau.js", "contenu.js", "moteur.js", "manifest.json"]))); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
