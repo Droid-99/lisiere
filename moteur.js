@@ -623,7 +623,8 @@ function rendreCourrier(){
   if(v.lettres.some(l=>!l.vue)){ v.lettres.forEach(l=>l.vue=true); sauver(); }
   const cle = JSON.stringify([sousComptoir, etat.postes, etat.etals, etat.graines, etat.fidele, etat.refusAbo, Math.floor(Date.now()/60000), new Date().getDay(), v.lettres.map(l=>l.id), etat.panier, etat.matieres, Object.keys(v.chapitres), v.lus, Math.floor(Date.now()/60000), sousComptoir==="marche" ? MARCHE.version : 0, etat.or]); if(cle===cleCourrier) return; cleCourrier = cle;
   const nonLus = CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]);
-  const visites = v.lettres.filter(l=>l.enPersonne), lettres = v.lettres.filter(l=>!l.enPersonne);
+  const parFin = (x,y)=>x.fin-y.fin;   // la plus pressée en premier
+  const visites = v.lettres.filter(l=>l.enPersonne).sort(parFin), lettres = v.lettres.filter(l=>!l.enPersonne).sort(parFin);
   const demandes = {}; v.lettres.forEach(l=>Object.keys(l.items).forEach(k=>demandes[k]=1));
   const cles = Object.keys(etat.panier).filter(k=>etat.panier[k]>0).sort((x,y)=>defObjet(y).valeur-defObjet(x).valeur);
   const panier = cles.length ? cles.map(k=>{ const d=defObjet(k), n=etat.panier[k];
@@ -1775,7 +1776,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.18.2";
+const VERSION_APP="0.18.3";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
