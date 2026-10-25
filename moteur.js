@@ -1182,7 +1182,7 @@ function rendreVillage(){
   const ch = etat.village.chantier, now = Date.now();
   const soleilLeve = estSoleilLeve();
   const vis = etat.ville.lettres.find(l=>l.enPersonne), fete = feteActive();
-  const cle = JSON.stringify([Object.keys(etat.objets||{}), Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
+  const cle = JSON.stringify([(etat.rucher||{}).stock, Object.keys(etat.objets||{}), Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
   if(cle===cleVillage){ rendreSeuil(); return; } cleVillage = cle;   // le résumé suit les pots à chaque instant (il ne se réécrit que s'il change)
   { const {w,h} = CARTE, g = $("village").querySelector("#passant");
     if(vis){ const p = pnjDe(vis.pnj), T = w*.13; g.innerHTML = `<circle cx="${w*.47}" cy="${h*.86}" r="${w*.05}" fill="#f4d58a" opacity=".25"><animate attributeName="r" values="${w*.045};${w*.06};${w*.045}" dur="2.4s" repeatCount="indefinite"/></circle>` + (IMG ? `<image href="img/pnj-${p.id}.webp" x="${w*.47-T/2}" y="${h*.89-T}" width="${T}" height="${T}"></image>` : `<text x="${w*.47}" y="${h*.88}" font-size="${w*.06}" text-anchor="middle">${p.emoji}</text>`) + `<circle cx="${w*.505}" cy="${h*.80}" r="${w*.012}" fill="#f4d58a"/><text x="${w*.505}" y="${h*.806}" font-size="${w*.016}" text-anchor="middle" font-weight="700" fill="#141a2e">!</text>`; g.setAttribute("aria-label", `${p.nom} attend près du sentier`); g.setAttribute("role","button"); }
@@ -1205,7 +1205,7 @@ function rendreVillage(){
     const g = $("village").querySelector(`.slot[data-b="${b.id}"]`); if(!g) continue;
     const fini = bati(b.id), enCours = ch && ch.id===b.id;
     const T = IMG ? 300 : 160, bimg = n => `<image href="img/${n}.webp" x="${-T/2}" y="${-T*.68}" width="${T}" height="${T}" onerror="this.outerHTML='<text y=&quot;0&quot; font-size=&quot;120&quot; text-anchor=&quot;middle&quot;>${b.emoji}</text>'"></image>`;
-    if(fini) g.innerHTML = IMG ? bimg(`bat-${b.id}`) : dessinBatiment(b,true);
+    if(fini) g.innerHTML = (IMG ? bimg(`bat-${b.id}`) : dessinBatiment(b,true)) + (b.id==="ruche" && rucher().stock ? `<g class="pretMiel"><circle cx="${T*.32}" cy="${-T*.55}" r="${T*.13}" fill="#f4d58a" opacity=".9"/><text x="${T*.32}" y="${-T*.5}" font-size="${T*.15}" text-anchor="middle">🍯</text>${rucher().stock>1?`<text x="${T*.46}" y="${-T*.62}" font-size="${T*.1}" font-weight="700" fill="#f4d58a">×${rucher().stock}</text>`:""}</g>` : "");
     else if(enCours){ const p=Math.min(1,(now-ch.debut)/(ch.fin-ch.debut)); g.innerHTML = (IMG ? bimg(`bat-${b.id}-chantier`) : dessinBatiment(b,false)) + `<rect x="-40" y="${T*.32}" width="80" height="8" rx="4" fill="#3a3150"/><rect x="-40" y="${T*.32}" width="${80*p}" height="8" rx="4" fill="#f4d58a"/>`; }
     else g.innerHTML = `<ellipse rx="40" ry="18" fill="#55496b" opacity="${IMG?.3:.6}"/><ellipse rx="28" ry="11" fill="${IMG?"rgba(58,49,80,.5)":"#3a3150"}" stroke="#e8dcc0" stroke-width="3" stroke-dasharray="7 6"/>`;
     g.classList.toggle("vide", !fini && !enCours);
@@ -1247,6 +1247,7 @@ function rendreSeuil(){
   if(nv) part.push(`<b>${nv} nouvelle${nv>1?"s":""} lettre${nv>1?"s":""}</b>`); if(pr) part.push(`${pr} prête${pr>1?"s":""} à livrer`); if(chp) part.push(`une lettre de l'histoire à lire`);
   if(part.length) lignes.push(`<span>✉️ ${part.join(" · ")}</span>`);
   if(vis) lignes.push(`<span>👋 <b>${pnjDe(vis.pnj).nom}</b> attend près du sentier</span>`);
+  if(bati("ruche") && rucher().stock) lignes.push(`<span>🐝 <b>Ruches</b> · ${rucher().stock} pot${rucher().stock>1?"s":""} de miel à récolter</span>`);
   if(etat.cabane){ const c=etat.cabane, t=c.travaux[0], ab=aReparer().length, nonLus=LIVRES.filter(l=>c.livres[l.id] && !c.livres[l.id].defauts.length && !c.lus[l.id]).length, part=[];
     if(t) part.push(c.travaux.length>1 ? `${c.travaux.length} ateliers au travail` : `atelier : encore ${duree(Math.max(60, t.reste/(amC("presse")?2:1)))}`); const abL = aReparer().filter(id=>!c.travaux.some(x=>x.livre===id)).length; if(abL) part.push(`${abL} livre${abL>1?"s":""} à réparer`);
     if(nonLus) part.push(`<b>${nonLus} à lire</b>`);
@@ -1256,6 +1257,7 @@ function rendreSeuil(){
 }
 function ouvrirBatiment(id){
   if(id==="cabane" && bati("cabane")) return ouvrirCabane();
+  if(id==="ruche" && bati("ruche")){ if(rucher().stock) recolterMiel(); else ouvrirRuches(); return; }
   const b = BATIMENTS.find(x=>x.id===id), ch = etat.village.chantier, fini = bati(id), enCours = ch && ch.id===id;
   let corps = `<p class="intro">${b.texte}</p>`;
   if(fini) corps += `<div class="regle"><b>Terminé</b><small class="histoire">${b.histoire}</small></div>`;
@@ -1533,8 +1535,34 @@ function pousser(dt, lumiere){
     if(pot.age>=p.duree){ if(p.graine) etat.lunesFleuries++; evenement({type:"fleur", plante:pot.plante, zone:z.id}); }
   }
 }
+/* ---------- les ruches : un pot de miel toutes les 6 h, à récolter ; la hausse en garde deux ---------- */
+const RUCHE_PERIODE = 6*3600;
+const rucher = () => (etat.rucher = etat.rucher || {stock:1, t:0, cap:1});
+function butiner(dt){
+  if(!bati("ruche")) return; const r = rucher();
+  if(r.stock >= r.cap){ r.t = 0; return; }
+  r.t += dt; while(r.t >= RUCHE_PERIODE && r.stock < r.cap){ r.t -= RUCHE_PERIODE; r.stock++; }
+  if(r.stock >= r.cap) r.t = 0;
+}
+function recolterMiel(){
+  const r = rucher(); if(!r.stock) return false;
+  ajouter("miel", r.stock); const n = r.stock; r.stock = 0; r.t = 0;
+  dire(`Tu récoltes ${n} pot${n>1?"s":""} de miel. 🍯 +${n}. Les abeilles se remettent au travail : le prochain dans 6 h.`); tinter(587); tinter(784,.12);
+  cleVillage = ""; sauver(); rendre(); return true;
+}
+function ouvrirRuches(){
+  const r = rucher(), b = BATIMENTS.find(x=>x.id==="ruche"), reste = r.stock>=r.cap ? 0 : RUCHE_PERIODE - r.t;
+  const hausse = {prix:250, materiaux:{bois:4, clous:2}, outils:["marteau"]};
+  const c = ouvrirPanneau(`<h2>🐝 Les ruches</h2><div class="corps"><p class="intro">Un pot de miel toutes les six heures. Il attend dans la ruche qu'on vienne le prendre ; tant qu'il est là, les abeilles n'en font pas d'autre.</p>
+    <div class="regle"><b>${r.stock ? `🍯 ${r.stock} pot${r.stock>1?"s":""} prêt${r.stock>1?"s":""}` : "Rien à récolter"}</b><small>${r.stock>=r.cap ? "Les ruches sont pleines : récolte pour qu'elles reprennent." : `Prochain pot dans ${duree(Math.max(60,reste))}.`} Capacité : ${r.cap} pot${r.cap>1?"s":""}.</small></div>
+    ${r.stock ? `<button class="fermer" id="recolteMiel">Récolter</button>` : ""}
+    ${r.cap<2 ? `<h3>Une hausse sur chaque ruche</h3><p class="intro">Un étage de cadres en plus : les ruches gardent jusqu'à deux pots. Tu peux passer toutes les douze heures sans rien perdre.</p><div class="besoins">${besoinsBatiment(hausse)}</div><button class="choix" id="hausse" ${manqueBatiment(hausse).length?"disabled":""}>Poser les hausses</button>` : `<div class="regle"><b>✓ Hausses posées</b><small>Deux pots en réserve au plus.</small></div>`}
+    <h3>${b.nom}</h3><small class="histoire">${b.histoire}</small></div>`);
+  const k = $("recolteMiel"); if(k) k.addEventListener("click", ()=>{ recolterMiel(); ouvrirRuches(); });
+  const h = $("hausse"); if(h) h.addEventListener("click", ()=>{ if(manqueBatiment(hausse).length) return; etat.or -= hausse.prix; for(const m in hausse.materiaux) etat.matieres[m] -= hausse.materiaux[m]; r.cap = 2; dire("Hausses posées : les ruches gardent maintenant deux pots."); tinter(523); tinter(659,.12); sauver(); rendre(); ouvrirRuches(); });
+}
 function avancer(dt){
-  produire(dt); initCabane();
+  produire(dt); initCabane(); butiner(dt);
   // par tranches de 15 min au plus, pour que les plantes de lumière suivent le vrai jour pendant une absence
   let t = Date.now() - dt*1000, reste = dt;
   while(reste > 0){
@@ -1747,7 +1775,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.18.1";
+const VERSION_APP="0.18.2";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
