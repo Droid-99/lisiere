@@ -1190,7 +1190,8 @@ function rendreVillage(){
     const fg = $("village").querySelector("#fete");
     if(fete==="citrouilles"){ const sombre = PHASE.phase==="nuit"||PHASE.phase==="crepuscule";
       // quelques lanternes posées dans l'herbe, par petits groupes : au départ du sentier, près de la cabane, au bord des terres
-      const pos = [[.415,.80,1],[.455,.815,.8],[.565,.70,.9],[.44,.62,.85],[.33,.47,.8],[.36,.475,.65]];
+      // de petites citrouilles posées en bordure : orée du bois, haies de gauche et de droite, rochers du bas ; le centre reste libre
+      const pos = [[.16,.77,.45],[.19,.79,.36],[.24,.295,.45],[.275,.3,.36],[.34,.29,.38],[.42,.285,.4],[.6,.29,.45],[.635,.285,.36],[.7,.3,.38],[.84,.59,.45],[.815,.615,.36],[.2,.84,.55],[.245,.855,.42],[.37,.9,.45],[.4,.915,.36],[.68,.89,.5],[.715,.905,.4]];
       fg.innerHTML = pos.map(([x,y,k])=>{ const T=w*.05*k, cx=w*x, cy=h*y;
         const halo = sombre ? `<circle cx="${cx}" cy="${cy-T*.35}" r="${T*1.1}" fill="url(#haloCitr)"/>` : "";
         return halo + (IMG ? `<image href="img/denree-lanterne.webp" x="${cx-T/2}" y="${cy-T*.85}" width="${T}" height="${T}" ${sombre?"":"opacity=\".95\""}></image>` : `<text x="${cx}" y="${cy}" font-size="${T*.8}" text-anchor="middle">🎃</text>`); }).join("")
@@ -1746,7 +1747,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.18.0";
+const VERSION_APP="0.18.1";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
