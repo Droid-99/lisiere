@@ -51,10 +51,10 @@ CONTENU.MOMENTS = [
    seuls : s'il est renseigné, seuls ces visiteurs sortent.
 */
 CONTENU.TEMPS = [
-  {id:"clair",   nom:"Clair",   pluie:false, visites:1,   poids:{hiver:30, printemps:45, ete:55, automne:38}},
-  {id:"nuageux", nom:"Nuageux", pluie:false, visites:.9,  poids:{hiver:30, printemps:25, ete:20, automne:28}},
-  {id:"brume",   nom:"Brume",   pluie:false, visites:.8,  poids:{hiver:15, printemps:10, ete:5,  automne:14}},
-  {id:"pluie",   nom:"Pluie",   pluie:true,  visites:.8,  poids:{hiver:20, printemps:15, ete:10, automne:15}},
+  {id:"clair",   nom:"Clair",   pluie:false, visites:1,   poids:{hiver:28, printemps:40, ete:50, automne:32}},
+  {id:"nuageux", nom:"Nuageux", pluie:false, visites:.9,  poids:{hiver:24, printemps:22, ete:18, automne:24}},
+  {id:"brume",   nom:"Brume",   pluie:false, visites:.8,  poids:{hiver:13, printemps:8,  ete:5,  automne:12}},
+  {id:"pluie",   nom:"Pluie",   pluie:true,  visites:.8,  poids:{hiver:30, printemps:25, ete:17, automne:27}},
   {id:"tempete", nom:"Tempête", pluie:true,  visites:.3,  poids:{hiver:5,  printemps:5,  ete:10, automne:5}, seuls:["canard","grenouille","escargot"]},
 ];
 
@@ -903,8 +903,8 @@ CONTENU.REGLES = {
   averse: 900,           // sous la pluie, toutes les plantes assoiffées sont abreuvées à cet intervalle (15 min)
   roseeMax: c=>2+Math.floor(c.nb(p=>p.ouvert,"potager")/4),
   saison: date=>{ const m=date.getMonth(); return m<=1||m===11 ? "hiver" : m<=4 ? "printemps" : m<=7 ? "ete" : "automne"; },
-  temps: date=>{        // le temps du jour, tiré de la date avec les poids de la saison ; le même toute la journée
-    const s=`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`;
+  temps: date=>{        // le temps change toutes les six heures (0 h, 6 h, 12 h, 18 h), tiré de la date avec les poids de la saison
+    const s=`${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}-${Math.floor(date.getHours()/6)}`;
     let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619)>>>0; }
     h^=h>>>13; h=Math.imul(h,0x5bd1e995)>>>0; h=(h^(h>>>15))>>>0;
     const saison = CONTENU.REGLES.saison(date), total = CONTENU.TEMPS.reduce((n,t)=>n+t.poids[saison],0);
