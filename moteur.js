@@ -276,22 +276,27 @@ function evenement(evt){
 
 /* ---------- navigation entre zones ---------- */
 function rendreNav(){
-  document.querySelectorAll("#bas [data-aller]").forEach(b=>{ if(b.dataset.aller===ZONE) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  const actif = ZONE==="panier"||ZONE==="carnet" ? ZONE : "village";   // les lieux de la carte restent « à la lisière »
+  document.querySelectorAll("#bas [data-aller]").forEach(b=>{ if(b.dataset.aller===actif) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
 }
+const estComptoir = z => z==="courrier" || z==="panier" || z==="marche";
+const TITRES = {atelier:"🔨 L'établi", cuisine:"🍳 La cuisine", courrier:"📮 Le courrier", panier:"🧺 Le panier", marche:"🪧 Le marché", carnet:"📖 Le carnet"};
 function allerA(id){
   if(ZONE===id) return;
+  if(id==="panier") sousComptoir = "panier"; else if(id==="marche") sousComptoir = "marche"; else if(id==="courrier" && sousComptoir!=="amis") sousComptoir = "courrier";
   effacerMsg();
   ZONE = id; document.body.dataset.zone = id;
   const z = zoneDef(id);
-  $("ecran-village").hidden = id!=="village"; $("ecran-zone").hidden = !z; $("ecran-atelier").hidden = id!=="atelier" && id!=="cuisine"; $("ecran-courrier").hidden = id!=="courrier"; $("ecran-carnet").hidden = id!=="carnet";
-  $("retour").hidden = id==="village";
-  $("titre").textContent = z ? `${z.emoji} ${z.nom}` : id==="atelier" ? "🔨 L'atelier" : id==="cuisine" ? "🍳 La cuisine" : id==="courrier" ? "🧺 Le comptoir" : id==="carnet" ? "📖 Le carnet" : (etat.pleineLune ? TEXTES.titrePleine : TEXTES.titre);
+  $("ecran-village").hidden = id!=="village"; $("ecran-zone").hidden = !z; $("ecran-atelier").hidden = id!=="atelier" && id!=="cuisine"; $("ecran-courrier").hidden = !estComptoir(id); $("ecran-carnet").hidden = id!=="carnet";
+  $("retour").hidden = id==="village" || id==="panier" || id==="carnet";
+  $("titre").textContent = z ? `${z.emoji} ${z.nom}` : TITRES[id] || (etat.pleineLune ? TEXTES.titrePleine : TEXTES.titre);
   cleAtelier = ""; cleCourrier = "";
   if(id==="village") construireCarte();
   if(z){ construirePots(z); const p=PLANTES[outil]; if(outil!=="eau" && (!p || p.zone!==z.id)) outil=z.graines[0]; if(outil==="eau" && !z.rosee) outil=z.graines[0]; }
   $("contenu").scrollTop = 0; $("contenu").classList.toggle("plein", id==="village" || !!z);
   rendreNav(); rendreBarre(); rendre(); evenement(null);
-  if(z) audio.effet("pas"); else if(id==="courrier"||id==="carnet") audio.effet("papier");
+  if(z) audio.effet("pas"); else if(estComptoir(id)||id==="carnet") audio.effet("papier");
+  if(id==="marche"||(id==="courrier"&&sousComptoir==="amis")) chargerMarche();
   if(id==="carnet") ouvrirCarnet();
   audio.rafraichir();
 }
@@ -344,7 +349,7 @@ function rendre(){
   $("matieres").innerHTML = ""; void mats;   // les matières se voient à l'atelier ; l'en-tête garde l'or, les lunes et la rosée
   if(z){ for(let i=0;i<z.nbPots;i++) majPot(i); majSentier(); }
   else if(ZONE==="atelier" || ZONE==="cuisine") rendreAtelier();
-  else if(ZONE==="courrier") rendreCourrier();
+  else if(estComptoir(ZONE)) rendreCourrier();
   else if(ZONE==="carnet"){ /* rendu à l'ouverture et au changement d'onglet */ }
   else rendreVillage();
 }
@@ -488,7 +493,7 @@ function rendreAtelier(){
     <h3>📜 Recettes <small>${nbConnues}/${nbTot} connues</small></h3><p class="intro">Une recette se découvre (l'histoire, les habitants, l'herbier, les bâtiments), puis s'apprend avec des lunes. Un plat cuit en temps réel et se vend bien plus cher que ses ingrédients.</p><div class="objets">${cuisine}</div>
 `;
   else a.innerHTML = `<p class="intro">Les améliorations se paient en lunes, et ce que les visiteurs laissent devient des objets.</p>
-    <h3>✨ Améliorations</h3><p class="intro">Elles se paient en lunes, celles que donnent les visiteurs et les habitants.</p><div class="objets">${amel}</div>
+    <h3>✨ Améliorations</h3><div class="objets">${amel}</div>
     <h3>🪚 Objets</h3><div class="matieres">${mats}</div><div class="objets">${objs}</div>`;
   a.querySelectorAll("[data-objet]").forEach(b=>b.addEventListener("click",()=>fabriquer(b.dataset.objet)));
   a.querySelectorAll("[data-cuire]").forEach(b=>b.addEventListener("click",()=>cuisiner(b.dataset.cuire)));
@@ -621,7 +626,7 @@ function carteLettre(l){
 function rendreCourrier(){
   const a = $("courrier"), v = etat.ville;
   if(v.lettres.some(l=>!l.vue)){ v.lettres.forEach(l=>l.vue=true); sauver(); }
-  const cle = JSON.stringify([sousComptoir, etat.postes, etat.etals, etat.graines, etat.fidele, etat.refusAbo, Math.floor(Date.now()/60000), new Date().getDay(), v.lettres.map(l=>l.id), etat.panier, etat.matieres, Object.keys(v.chapitres), v.lus, Math.floor(Date.now()/60000), sousComptoir==="marche" ? MARCHE.version : 0, etat.or]); if(cle===cleCourrier) return; cleCourrier = cle;
+  const cle = JSON.stringify([sousComptoir, PANIER, ZONE, etat.postes, etat.etals, etat.graines, etat.fidele, etat.refusAbo, Math.floor(Date.now()/60000), new Date().getDay(), v.lettres.map(l=>l.id), etat.panier, etat.matieres, Object.keys(v.chapitres), v.lus, Math.floor(Date.now()/60000), sousComptoir==="marche" ? MARCHE.version : 0, etat.or]); if(cle===cleCourrier) return; cleCourrier = cle;
   const nonLus = CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]);
   const parFin = (x,y)=>x.fin-y.fin;   // la plus pressée en premier
   const visites = v.lettres.filter(l=>l.enPersonne).sort(parFin), lettres = v.lettres.filter(l=>!l.enPersonne).sort(parFin);
@@ -632,12 +637,28 @@ function rendreCourrier(){
     : `<p class="intro">Vide. Ce que tu récoltes et ce que tu cuisines arrive ici.</p>`;
   const auj = jourDe(new Date()), prochain = v.facteurJour!==auj ? "ce matin, dès 8 h" : v.facteurSoir!==auj ? "vers 15 h" : "demain matin";
   const nPret = lettres.filter(l=>aTout(l.items)).length + visites.length + nonLus.length;
-  const onglets = `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Courrier${nPret?` <i class="mini">${nPret}</i>`:""}`],["panier",`🧺 Panier <small>${cles.reduce((t,k)=>t+etat.panier[k],0)}</small>`],["marche",`🏪 Marché`], ...(AMIS && RESEAU.actif ? [["amis",`💌 Amis${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]] : [])].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
+  const onglets = ZONE!=="courrier" ? "" : `<div class="onglets sous" role="tablist">${[["courrier",`✉️ Lettres${nPret?` <i class="mini">${nPret}</i>`:""}`], ...(AMIS && RESEAU.actif ? [["amis",`💌 Amis${MARCHE.nouveau?` <i class="mini">!</i>`:""}`]] : [])].map(([id,t])=>`<button role="tab" data-sous="${id}" aria-selected="${sousComptoir===id}">${t}</button>`).join("")}</div>`;
   if(sousComptoir==="amis"){ a.innerHTML = onglets + rendreAmis(); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); if(sousComptoir!=="courrier"&&sousComptoir!=="panier") chargerMarche(); })); return; }
   if(sousComptoir==="marche"){ const [haut, bas] = rendreMarche().split("<!--BAS-->"); a.innerHTML = onglets + haut + rendreEtals() + bas; a.querySelectorAll("details.repli").forEach((d,i)=>{ if(i===0) d.addEventListener("toggle",()=>{ MARCHE.ouvert = d.open; }); }); brancherEtals(a); brancherMarche(a); a.querySelectorAll("[data-sous]").forEach(b=>b.addEventListener("click",()=>{ sousComptoir=b.dataset.sous; cleCourrier=""; rendreCourrier(); })); return; }
   const chantier = Object.keys(MATIERES).filter(k=>(MATIERES[k].chantier||MATIERES[k].outil) && (etat.matieres[k]||0)>0);
-  if(sousComptoir==="panier"){ a.innerHTML = onglets + `<p class="intro">Le colporteur achète tout, au prix de base. Les lettres paient une fois et demie, les visites le double. Touche un objet pour sa fiche.</p><div class="panier">${panier}</div>` +
-    (chantier.length ? `<h3>Pour bâtir</h3><div class="materiaux">${chantier.map(k=>`<span class="mat">${MATIERES[k].emoji} ${MATIERES[k].nom}${MATIERES[k].outil?"":` ×${etat.matieres[k]}`}</span>`).join("")}</div>` : "");
+  if(sousComptoir==="panier"){
+    // le panier : une grille de cases ; une case touchée montre sa fiche courte en bas (qui la demande, qui l'aime, vendre)
+    const filtre = PANIER.filtre, deQui = k => PLANTES[base(k)] ? "recoltes" : "plats";
+    const visibles = filtre==="matieres" ? [] : cles.filter(k=>deQui(k)===filtre);
+    const mats = Object.keys(MATIERES).filter(k=>(etat.matieres[k]||0)>0);
+    if(PANIER.choisi && !(etat.panier[PANIER.choisi]>0)) PANIER.choisi = null;
+    const ch = PANIER.choisi && visibles.includes(PANIER.choisi) ? PANIER.choisi : null;
+    const ongP = `<div class="onglets sous" role="tablist">${[["recoltes","Récoltes"],["plats","Plats"],["matieres","Matières"]].map(([id,t])=>`<button role="tab" data-pf="${id}" aria-selected="${filtre===id}">${t}</button>`).join("")}</div>`;
+    const caseH = k => { const d=defObjet(k), n=etat.panier[k]; return `<button class="case ${d.rare?"rare":""} ${ch===k?"choisie":""}" data-case="${k}">${ico(k,"big")}<b>${d.nom}</b><small>${d.valeur} 🪙</small><span class="n">${n}</span>${demandes[base(k)]?`<span class="dem" title="demandé">✉</span>`:""}</button>`; };
+    let fiche = "";
+    if(ch){ const d=defObjet(ch), n=etat.panier[ch], b=base(ch), aime=HABITANTS.filter(h=>h.aime.includes(b)).map(h=>h.nom.toLowerCase()), nd=etat.ville.lettres.filter(l=>l.items[b]).length;
+      fiche = `<div class="ficheCase">${ico(ch,"big")}<div><b>${d.nom} ×${n}</b><small>${[nd?`demandé par ${nd} lettre${nd>1?"s":""}`:"", aime.length?`plaît à : ${aime.join(", ")}`:"", d.rare?"variante rare":""].filter(Boolean).join(" · ") || "au colporteur : "+d.valeur+" 🪙 pièce"}</small>
+        <div class="actions"><button class="etiq" data-vendre="${ch}" data-n="1">Vendre 1 · ${d.valeur} 🪙</button>${n>1?`<button class="etiq" data-vendre="${ch}" data-n="${n}">Tout · ${d.valeur*n} 🪙</button>`:""}<button class="etiq clair" data-info="${ch}">Fiche</button></div></div></div>`; }
+    a.innerHTML = ongP + (filtre==="matieres"
+      ? (mats.length ? `<div class="grille">${mats.map(k=>`<div class="case"><span class="big">${IMG?`<img class="ico" src="img/matiere-${k}.webp" alt="" onerror="this.outerHTML='${MATIERES[k].emoji}'">`:MATIERES[k].emoji}</span><b>${MATIERES[k].nom}</b><small>${MATIERES[k].outil?"outil":"matière"}</small>${MATIERES[k].outil?"":`<span class="n">${etat.matieres[k]}</span>`}</div>`).join("")}</div>` : `<p class="intro">Aucune matière pour l'instant.</p>`)
+      : (visibles.length ? `<p class="intro">Touche une case : qui la demande, à qui elle plaît, ou la vendre au colporteur. Une lettre paie une fois et demie, une visite le double.</p><div class="grille">${visibles.map(caseH).join("")}</div>${fiche}` : `<p class="intro">${filtre==="plats" ? "Aucun plat. Ils se cuisinent au feu, au campement ou dans la cabane." : "Vide. Ce que tu récoltes arrive ici."}</p>`));
+    a.querySelectorAll("[data-pf]").forEach(b=>b.addEventListener("click",()=>{ PANIER.filtre=b.dataset.pf; PANIER.choisi=null; cleCourrier=""; rendreCourrier(); }));
+    a.querySelectorAll("[data-case]").forEach(b=>b.addEventListener("click",()=>{ PANIER.choisi = PANIER.choisi===b.dataset.case ? null : b.dataset.case; cleCourrier=""; rendreCourrier(); const f=a.querySelector(".ficheCase"); if(f) f.scrollIntoView({block:"nearest", behavior:"smooth"}); }));
   } else a.innerHTML = onglets + `<p class="intro">${TEXTES.courrierIntro}</p>` +
     nonLus.map(ch=>`<button class="chapitre" data-lire="${ch.id}"><span class="big">📜</span><span><b>${ch.titre}</b><small>De ${ch.de}. Toucher pour lire.</small></span></button>`).join("") +
     (visites.length ? `<h3>Sur place</h3>${visites.map(carteLettre).join("")}` : "") +
@@ -655,6 +676,7 @@ function rendreCourrier(){
    L'acheteur paie à l'achat ; le vendeur encaisse quand son jeu voit la vente. Les cadeaux ne vont qu'aux amis.
 */
 let sousComptoir = "courrier";
+const PANIER = {filtre:"recoltes", choisi:null};
 
 /* ---------- étals des gens de Saint-Aubin : matériaux et outils, abonnements de livraison ---------- */
 const hachage = t => { let h=2166136261; for(const ch of t){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619)>>>0; } return h; };
@@ -799,7 +821,7 @@ const objetValide = id => { const b=base(id); return !!(PLANTES[b] || DENREES[b]
    etat.dejaRegle : si un jardinier a acheté en ligne une annonce déjà partie hors ligne, on n'encaisse pas une seconde fois. */
 const monEtal = () => { etat.etal = etat.etal || []; if(!JOUEURS) etat.etal.forEach(l=>{ if(l.mode==="jamais") l.mode="demander"; }); return etat.etal; };
 const MAX_ANNONCES = 10;
-function majMarcheVue(){ MARCHE.version++; cleCourrier=""; if(ZONE==="courrier") rendreCourrier(); majPastille(); }
+function majMarcheVue(){ MARCHE.version++; cleCourrier=""; if(estComptoir(ZONE)) rendreCourrier(); majPastille(); }
 async function chargerMarche(silencieux){
   if(!(JOUEURS || AMIS) || !RESEAU.actif || MARCHE.enCours) return; MARCHE.enCours = true; if(!silencieux) majMarcheVue();
   try{
@@ -1153,7 +1175,7 @@ function construireCarte(){
     svg.setAttribute("width", t); svg.setAttribute("height", t*R);
     carte.scrollLeft = px*t - fx; carte.scrollTop = py*t - fy;
     etat.zoomCarte = t/(carte.clientWidth||400); apresTaille.forEach(f=>f()); return t; };
-  requestAnimationFrame(()=>{ const cw=carte.clientWidth, z=etat.zoomCarte||2.2; const t=Math.max(bornes()[0], Math.min(bornes()[1], z*cw));
+  requestAnimationFrame(()=>{ const cw=carte.clientWidth, z=etat.zoomCarte||1; const t=Math.max(bornes()[0], Math.min(bornes()[1], z*cw));
     svg.setAttribute("width", t); svg.setAttribute("height", t*R); carte.scrollLeft=(t-cw)/2; carte.scrollTop=t*R*.5-carte.clientHeight/2; apresTaille.forEach(f=>f()); });
   addEventListener("resize", ()=>fixer(+svg.getAttribute("width")||600, carte.clientWidth/2, carte.clientHeight/2));
   let pince = null;
@@ -1165,10 +1187,52 @@ function construireCarte(){
   // double toucher : alterne entre vue d'ensemble et vue rapprochée
   let dernierTap = 0;
   carte.addEventListener("touchend", e=>{ if(e.touches.length) return; const now=Date.now(); if(now-dernierTap<300 && e.changedTouches.length===1){ const r=carte.getBoundingClientRect(), c=e.changedTouches[0], [mn,mx]=bornes(), t=+svg.getAttribute("width"); fixer(t>mn*1.5 ? mn : mn*2.2, c.clientX-r.left, c.clientY-r.top); sauver(); dernierTap=0; } else dernierTap=now; });
+  // étiquettes de papier des lieux : en HTML par-dessus la carte, pour garder une taille lisible à tous les zooms
+  const et = document.createElement("div"); et.className = "etiquettes"; carte.appendChild(et);
+  et.innerHTML = LIEUX.map(l=>`<button class="etiq-lieu" data-lieu="${l.id}"><i>${l.emoji}</i><span class="nom"></span><span class="pas" hidden></span></button>`).join("");
+  et.querySelectorAll("[data-lieu]").forEach(b=>b.addEventListener("click", e=>{ e.stopPropagation(); b.blur(); LIEUX.find(l=>l.id===b.dataset.lieu).ouvrir(); }));
+  const poser = ()=>{ const t=+svg.getAttribute("width")||0, k=t/CARTE.w, m=parseFloat(svg.style.marginTop)||0;
+    et.querySelectorAll("[data-lieu]").forEach(b=>{ const l=LIEUX.find(x=>x.id===b.dataset.lieu); b.style.left=(l.x*t)+"px"; b.style.top=(m+(CARTE.OY+l.y*CARTE.h)*k)+"px"; }); };
+  poser(); apresTaille.push(poser);
   demarrerCalque(carte, svg);
   const lb = $("luneBtn"); if(IMG){ carte.appendChild(lb); const place=()=>{ const t=+svg.getAttribute("width")||0; const oy=t*CARTE.OY/CARTE.w; lb.style.left=(t*.72)+"px"; lb.style.top=((parseFloat(svg.style.marginTop)||0)+oy)+"px"; lb.style.width=(t*.22)+"px"; lb.style.height=(t*.14)+"px"; }; place(); apresTaille.push(place); }
-  v.insertAdjacentHTML("beforeend", `<div class="legende"><span>Touche les terres pour le potager, l'étang pour la mare, une pierre plate pour bâtir.</span></div>`);
+  v.insertAdjacentHTML("beforeend", `<div class="legende"><span>Touche une étiquette pour entrer dans un lieu, une pierre plate pour bâtir.</span></div>`);
   cleVillage = "";
+}
+/* ---------- les lieux de la carte : chacun s'ouvre d'un toucher sur son étiquette ---------- */
+const LIEUX = [
+  {id:"potager", emoji:"🌱", x:.23, y:.305, ouvrir:()=>allerA("potager"),
+   nom:()=>"Potager", info:()=>infoZone("potager")},
+  {id:"mare", emoji:"💧", x:.8, y:.275, ouvrir:()=>{ if(zoneOuverte("mare")) allerA("mare"); else dire("L'étang attend : il s'ouvre avec la cabane, ou quand six pots sont ouverts au potager."); },
+   nom:()=>zoneOuverte("mare") ? "Mare" : "Mare · fermée", info:()=>zoneOuverte("mare") ? infoZone("mare") : null},
+  {id:"foyer", emoji:"🔥", x:.5, y:.625, ouvrir:()=>ouvrirFoyer(),
+   nom:()=>bati("cabane") ? "Cabane" : "Campement", info:()=>{ const f=etat.cuissons.filter(x=>x.fin<=Date.now()).length, c=etat.cabane, l=c ? LIVRES.filter(x=>c.livres[x.id] && !c.livres[x.id].defauts.length && !c.lus[x.id]).length : 0; return f||l ? "!" : null; }},
+  {id:"boite", emoji:"📮", x:.43, y:.8, ouvrir:()=>allerA("courrier"),
+   nom:()=>"Boîte aux lettres", info:()=>{ const v=etat.ville, n=CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]).length + v.lettres.filter(l=>!l.vue || aTout(l.items)).length + (MARCHE.nouveau?1:0); return n||null; }},
+  {id:"marche", emoji:"🪧", x:.5, y:.975, ouvrir:()=>allerA("marche"),
+   nom:()=>"Saint-Aubin · marché", info:()=>null},
+];
+function infoZone(z){ const pots=etat.zones[z].pots, prets=pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length, soif=pots.filter(p=>p.plante && besoin(PLANTES[p.plante])==="rosee" && p.eau<=0 && p.age<PLANTES[p.plante].duree).length;
+  return prets ? prets : soif ? "💧" : null; }
+function majEtiquettes(){
+  document.querySelectorAll(".etiq-lieu").forEach(b=>{ const l=LIEUX.find(x=>x.id===b.dataset.lieu); if(!l) return;
+    const nom=l.nom(), info=l.info(), p=b.querySelector(".pas"), n=b.querySelector(".nom");
+    if(n.textContent!==nom) n.textContent=nom;
+    const t = info==null ? "" : String(info); if(p.textContent!==t) p.textContent=t; p.hidden = !t; b.classList.toggle("alerte", !!t); });
+}
+// le campement d'Odile, puis la cabane : la cuisine, l'établi, la reliure
+function ouvrirFoyer(){
+  const cab = bati("cabane"), f = etat.cuissons.filter(x=>x.fin<=Date.now()).length, en = etat.cuissons.length;
+  const choix = [
+    ["cuisine", "🍳", cab?"La cheminée":"Le feu de camp", "Cuisiner : "+(f ? `${f} plat${f>1?"s":""} prêt${f>1?"s":""}` : en ? `${en} plat${en>1?"s":""} sur le feu` : "le feu est libre")],
+    ["atelier", "🔨", cab?"L'établi":"La caisse à outils", "Fabriquer des objets, améliorer la lisière"],
+    ...(cab ? [["reliure", "📚", "La reliure", "Réparer et lire les livres rapportés par les bêtes"]] : []),
+  ];
+  const c = ouvrirPanneau(`<h2>${cab?"🛖 La cabane":"🔥 Le campement"}</h2><div class="corps">${IMG && cab ? `<img class="cabaneImg" src="img/cabane-interieur-${estSoleilLeve()?"jour":"nuit"}.webp" alt="" onerror="this.remove()">` : ""}
+    <p class="intro">${cab ? "Ta cabane : un feu pour cuisiner, un établi, et les livres." : "La vieille bâche d'Odile, tendue entre deux frênes. Un feu, une caisse à outils. En attendant la cabane, on fait avec."}</p>
+    <div class="choixLieu">${choix.map(([id,e,n,d])=>`<button data-va="${id}"><span class="big">${e}</span><span><b>${n}</b><small>${d}</small></span></button>`).join("")}</div>
+    ${cab ? "" : `<p class="intro">Bâtir la cabane : touche la pierre plate au centre de la carte.</p>`}</div>`);
+  c.querySelectorAll("[data-va]").forEach(b=>b.addEventListener("click", ()=>{ const v=b.dataset.va; if(v==="reliure"){ ouvrirCabane(); return; } c.hidden=true; allerA(v); }));
 }
 const IMGS_OK = {}, IMGS_KO = {};
 function choisirImage(el, candidats){ // essaie les images dans l'ordre, garde la première qui existe (résultats mémorisés)
@@ -1184,6 +1248,7 @@ function rendreVillage(){
   const soleilLeve = estSoleilLeve();
   const vis = etat.ville.lettres.find(l=>l.enPersonne), fete = feteActive();
   const cle = JSON.stringify([(etat.rucher||{}).stock, Object.keys(etat.objets||{}), Object.keys(etat.postes||{}), Object.keys(etat.village.batis), ch && ch.id, ch && Math.floor((now-ch.debut)/60000), PHASE.id, TEMPSID, soleilLeve, vis && vis.id, fete, etat.ville.lettres.map(l=>l.id+(l.vue?"v":"")+(aTout(l.items)?"p":"")).join(), Object.keys(etat.ville.lus).length, Object.keys(etat.ville.chapitres).length]);
+  majEtiquettes();
   if(cle===cleVillage){ rendreSeuil(); return; } cleVillage = cle;   // le résumé suit les pots à chaque instant (il ne se réécrit que s'il change)
   { const {w,h} = CARTE, g = $("village").querySelector("#passant");
     if(vis){ const p = pnjDe(vis.pnj), T = w*.13; g.innerHTML = `<circle cx="${w*.47}" cy="${h*.86}" r="${w*.05}" fill="#f4d58a" opacity=".25"><animate attributeName="r" values="${w*.045};${w*.06};${w*.045}" dur="2.4s" repeatCount="indefinite"/></circle>` + (IMG ? `<image href="img/pnj-${p.id}.webp" x="${w*.47-T/2}" y="${h*.89-T}" width="${T}" height="${T}"></image>` : `<text x="${w*.47}" y="${h*.88}" font-size="${w*.06}" text-anchor="middle">${p.emoji}</text>`) + `<circle cx="${w*.505}" cy="${h*.80}" r="${w*.012}" fill="#f4d58a"/><text x="${w*.505}" y="${h*.806}" font-size="${w*.016}" text-anchor="middle" font-weight="700" fill="#141a2e">!</text>`; g.setAttribute("aria-label", `${p.nom} attend près du sentier`); g.setAttribute("role","button"); }
@@ -1257,7 +1322,7 @@ function rendreSeuil(){
   const html = lignes.join(""); if(s.dataset.html!==html){ s.dataset.html = html; s.innerHTML = html; } if(s.hidden !== !lignes.length) s.hidden = !lignes.length;
 }
 function ouvrirBatiment(id){
-  if(id==="cabane" && bati("cabane")) return ouvrirCabane();
+  if(id==="cabane" && bati("cabane")) return ouvrirFoyer();
   if(id==="ruche" && bati("ruche")){ if(rucher().stock) recolterMiel(); else ouvrirRuches(); return; }
   const b = BATIMENTS.find(x=>x.id===id), ch = etat.village.chantier, fini = bati(id), enCours = ch && ch.id===id;
   let corps = `<p class="intro">${b.texte}</p>`;
@@ -1387,8 +1452,8 @@ function ouvrirCabane(){
   const dos = LIVRES.map(l=>{ const x=c.livres[l.id]; if(x && !x.defauts.length) return `<button class="dos" style="--c:${l.couleur}" data-lire="${l.id}" aria-label="${l.titre}"><span>${l.titre}</span>${c.lus[l.id]?"":"<i></i>"}</button>`; return `<span class="dos vide"></span>`; });
   const etagere = [0,10].map(i=>`<div class="etagere">${dos.slice(i,i+10).join("")}</div>`).join("");
   const ameli = AMC.map(a=>amC(a.id) ? `<div class="regle"><b>✓ ${a.nom}</b><small>${a.effet}</small></div>` : `<div class="regle"><b>${a.nom}</b><small>${a.effet}</small><div class="besoins">${besoinsBatiment(a)}</div><button class="choix" data-ameli="${a.id}" ${manqueBatiment(a).length?"disabled":""}>Installer</button></div>`).join("");
-  const html = `<h2>🛖 La cabane</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
-    <p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare. Coudre, coller, nettoyer : une chose à la fois. Le séchoir, lui, travaille pendant ce temps.</p>
+  const html = `<h2>📚 La reliure</h2><div class="corps">${IMG?`<img class="cabaneImg" src="img/cabane-interieur-${jour?"jour":"nuit"}.webp" alt="" onerror="this.remove()">`:""}
+    <button class="choix retourFoyer" data-foyer="1">‹ La cabane</button><p class="intro">Quatre petits ateliers, une cheminée, une étagère. Les bêtes du bois rapportent parfois des livres abandonnés ; ici, on les répare. Coudre, coller, nettoyer : une chose à la fois. Le séchoir, lui, travaille pendant ce temps.</p>
     ${!etat.boiteTrouvee && !etat.ville.chapitres.boite && etat.ville.chapitres.ruelle ? `<div class="plancher"><h3>Le plancher</h3><p class="intro">Mme Ruelle parlait d'une boîte, sous le plancher d'une cabane. Odile comptait toujours à partir de la cheminée.</p><div class="planches">${[1,2,3,4,5,6].map(i=>`<button class="planche" data-planche="${i}" aria-label="Planche ${i}"></button>`).join("")}</div><small class="intro">la cheminée ← → la fenêtre</small></div>` : ""}
     <h3>À réparer <small>${enAttente.length}</small></h3>${abimes || `<p class="intro">${c.travaux.length ? "Rien d'autre à réparer." : "Rien à réparer."} Salue les visiteurs : il arrive qu'ils laissent un livre sur le seuil.</p>`}
     <h3>Les ateliers</h3>${repos && c.travaux.length ? `<p class="intro">La nuit, les ateliers se reposent. Une lampe de travail permettrait de continuer.</p>` : ""}${ateliers}
@@ -1400,6 +1465,7 @@ function ouvrirCabane(){
   pn.querySelectorAll("[data-reparer]").forEach(b=>b.addEventListener("click",()=>lancerReparation(b.dataset.reparer, b.dataset.def)));
   pn.querySelectorAll("[data-lire]").forEach(b=>b.addEventListener("click",()=>lireLivre(b.dataset.lire)));
   pn.querySelectorAll("[data-ameli]").forEach(b=>b.addEventListener("click",()=>ameliorerCabane(b.dataset.ameli)));
+  pn.querySelectorAll("[data-foyer]").forEach(b=>b.addEventListener("click",ouvrirFoyer));
   pn.querySelectorAll("[data-planche]").forEach(b=>b.addEventListener("click",()=>{
     if(b.dataset.planche!=="3"){ b.classList.add("tapee"); dire(hasard(["Une planche bien clouée. Rien dessous.","Elle ne bouge pas.","Un peu de poussière, c'est tout.","Elle grince, mais elle tient."])); tinter(220); return; }
     etat.boiteTrouvee = 1; sauver(); tinter(392); tinter(523,.15); tinter(659,.3);
@@ -1609,7 +1675,8 @@ function tick(){
 function retour(){
   const dt = Math.min(43200,(Date.now()-dernierTick)/1000);
   TEMPSID = REGLES.temps(new Date()); PLUIE = tempsDef().pluie; PHASE = phaseDe(new Date()); rendreMeteo(); rendreNav();
-  collecte = []; if(etat.ville.chapitres.boite && !etat.mysteresOdile){ etat.mysteresOdile = 1; etat.mysteres = (etat.mysteres||0) + 2; annoncer("En rangeant la boîte d'Odile, tu trouves au fond deux graines que tu n'avais pas vues : des graines mystères. Elles t'attendent dans la barre du potager."); }
+  collecte = []; if(!etat.vue19){ etat.vue19 = 1; etat.zoomCarte = 1; }
+  if(etat.ville.chapitres.boite && !etat.mysteresOdile){ etat.mysteresOdile = 1; etat.mysteres = (etat.mysteres||0) + 2; annoncer("En rangeant la boîte d'Odile, tu trouves au fond deux graines que tu n'avais pas vues : des graines mystères. Elles t'attendent dans la barre du potager."); }
   if(!etat.ville.chapitres.boite) etat.mysteresOdile = 1;
   if(!etat.amitieRattrapee){ etat.amitieRattrapee = 1; for(const h of HABITANTS){ const hs=(etat.habitants||{})[h.id]; if(!hs) continue; const n = (hs.faites||[]).filter(id=>{ const d=h.demandes.find(x=>x.id===id); return d && !d.offrir; }).length; if(n) hs.amitie = Math.min(10, (hs.amitie||0) + 2*n); } }
   if(bati("cabane") && !etat.cabaneFoyer){ etat.cabaneFoyer = 1; annoncer("Ta cabane a maintenant une cheminée : un feu de plus à l'atelier. Et une boîte aux lettres : une lettre de plus chaque matin, qui attend un jour de plus."); } majPluie(); majChantier(); majCourrier(0); majCuisson(); majDecouvertes(); villageois();
@@ -1776,7 +1843,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.18.5";
+const VERSION_APP="0.19.0";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
@@ -1830,7 +1897,7 @@ const audio = (function(){
   function contexte(){
     const s = etat.son, fixe = SONS.ecoutes.find(e=>e.id===s.ecoute && e.c);
     if(fixe) return Object.assign({phase:"jour", pluie:false, dedans:false, ruche:false, cabane:false}, fixe.c);
-    const lieu = s.lieux ? (ZONE==="cuisine" ? "atelier" : ZONE==="village"||zoneDef(ZONE)||ZONE==="atelier"||ZONE==="courrier" ? ZONE : "village") : "village";
+    const lieu = s.lieux ? (ZONE==="cuisine" ? "atelier" : ZONE==="village"||zoneDef(ZONE)||ZONE==="atelier" ? ZONE : estComptoir(ZONE) ? "courrier" : "village") : "village";
     return {moment:PHASE.id, phase:PHASE.phase, temps:TEMPSID, pluie:PLUIE, lieu, dedans: lieu==="atelier"||lieu==="courrier", ruche:bati("ruche"), cabane:bati("cabane")};
   }
   const vg = g => etat.son.vol[g]||0;
