@@ -56,7 +56,8 @@ button{font-family:var(--body)}
 .carte #luneBtn{z-index:2}
 .carte #luneBtn{position:absolute;top:0;left:0;width:1px;height:1px;border:0;background:transparent;cursor:pointer}
 .carte .lieu,.carte .slot{cursor:pointer}
-.carte .lieu:focus-visible,.carte .slot:focus-visible{outline:none}
+.carte .lieu:focus,.carte .slot:focus,.carte .lieu:focus-visible,.carte .slot:focus-visible{outline:none}
+.carte svg:focus,.carte image:focus{outline:none}
 .legende{display:none}
 
 /* lieux (potager, mare) : la rangée des graines reste au bas, même avec peu de pots */

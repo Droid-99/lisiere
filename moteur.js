@@ -1136,7 +1136,7 @@ function construireCarte(){
   v.querySelector("#etang").addEventListener("click", versMare); v.querySelector("#etangClic").addEventListener("click", versMare);
   if(!IMG) v.querySelector("#zonesClic").setAttribute("display","none");
   if(IMG){ v.querySelector("#carteRepli").setAttribute("display","none"); v.querySelectorAll(".slot[data-b]").forEach(g=>{ const b=BATIMENTS.find(x=>x.id===g.dataset.b); if(b.ix!=null) g.setAttribute("transform",`translate(${w*b.ix/100} ${h*b.iy/100})`); }); }
-  v.querySelectorAll(".slot[data-b]").forEach(g=>g.addEventListener("click", ()=>ouvrirBatiment(g.dataset.b)));
+  v.querySelectorAll(".slot[data-b]").forEach(g=>g.addEventListener("click", ()=>{ g.blur && g.blur(); ouvrirBatiment(g.dataset.b); }));
   v.querySelectorAll(".slot[data-p]").forEach(g=>g.addEventListener("click", ()=>ouvrirPoste(g.dataset.p)));
   v.querySelector("#passant").addEventListener("click", ()=>{ const l=etat.ville.lettres.find(x=>x.enPersonne); if(l) ouvrirVisite(l); });
   const carte = v.querySelector("#carte"), svg = carte.querySelector("svg");
@@ -1776,7 +1776,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.18.4";
+const VERSION_APP="0.18.5";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
