@@ -1147,6 +1147,7 @@ function construireCarte(){
       ${zonesClic}
       <g id="fete" pointer-events="none"></g>
       <g id="objetsCarte" pointer-events="none"></g>
+      <g id="lieuxCarte">${IMG ? [["boite",.33,.84,200],["marche",.64,.975,210]].map(([id,x,y,T])=>`<g class="slot lieuDessin" data-lieu="${id}" transform="translate(${w*x} ${h*y})"><image href="img/lieu-${id}.webp" x="${-T/2}" y="${-T*.68}" width="${T}" height="${T}"></image></g>`).join("") : ""}</g>
       <g id="slots">${slots}</g>
       <g id="postes">${ETALS.filter(e=>e.apprenti).map(e=>`<g class="slot poste" data-p="${e.id}" role="button" aria-label="${e.apprenti.nom}" transform="translate(${w*e.apprenti.ix/100} ${h*e.apprenti.iy/100})"></g>`).join("")}</g>
       <g id="passant" class="passant"></g>
@@ -1160,6 +1161,7 @@ function construireCarte(){
   if(IMG){ v.querySelector("#carteRepli").setAttribute("display","none"); v.querySelectorAll(".slot[data-b]").forEach(g=>{ const b=BATIMENTS.find(x=>x.id===g.dataset.b); if(b.ix!=null) g.setAttribute("transform",`translate(${w*b.ix/100} ${h*b.iy/100})`); }); }
   v.querySelectorAll(".slot[data-b]").forEach(g=>g.addEventListener("click", ()=>{ g.blur && g.blur(); ouvrirBatiment(g.dataset.b); }));
   v.querySelectorAll(".slot[data-p]").forEach(g=>g.addEventListener("click", ()=>ouvrirPoste(g.dataset.p)));
+  v.querySelectorAll(".lieuDessin").forEach(g=>g.addEventListener("click", ()=>LIEUX.find(l=>l.id===g.dataset.lieu).ouvrir()));
   v.querySelector("#passant").addEventListener("click", ()=>{ const l=etat.ville.lettres.find(x=>x.enPersonne); if(l) ouvrirVisite(l); });
   const carte = v.querySelector("#carte"), svg = carte.querySelector("svg");
   // zoom : pincer pour zoomer et dézoomer, double toucher pour alterner
@@ -1192,7 +1194,7 @@ function construireCarte(){
   et.innerHTML = LIEUX.map(l=>`<button class="etiq-lieu" data-lieu="${l.id}"><i>${l.emoji}</i><span class="nom"></span><span class="pas" hidden></span></button>`).join("");
   et.querySelectorAll("[data-lieu]").forEach(b=>b.addEventListener("click", e=>{ e.stopPropagation(); b.blur(); LIEUX.find(l=>l.id===b.dataset.lieu).ouvrir(); }));
   const poser = ()=>{ const t=+svg.getAttribute("width")||0, k=t/CARTE.w, m=parseFloat(svg.style.marginTop)||0;
-    et.querySelectorAll("[data-lieu]").forEach(b=>{ const l=LIEUX.find(x=>x.id===b.dataset.lieu); b.style.left=(l.x*t)+"px"; b.style.top=(m+(CARTE.OY+l.y*CARTE.h)*k)+"px"; }); };
+    et.querySelectorAll("[data-lieu]").forEach(b=>{ const l=LIEUX.find(x=>x.id===b.dataset.lieu); const demi=(b.offsetWidth||80)/2+4; b.style.left=Math.max(demi, Math.min(t-demi, l.x*t))+"px"; b.style.top=(m+(CARTE.OY+l.y*CARTE.h)*k)+"px"; }); };
   poser(); apresTaille.push(poser);
   demarrerCalque(carte, svg);
   const lb = $("luneBtn"); if(IMG){ carte.appendChild(lb); const place=()=>{ const t=+svg.getAttribute("width")||0; const oy=t*CARTE.OY/CARTE.w; lb.style.left=(t*.72)+"px"; lb.style.top=((parseFloat(svg.style.marginTop)||0)+oy)+"px"; lb.style.width=(t*.22)+"px"; lb.style.height=(t*.14)+"px"; }; place(); apresTaille.push(place); }
@@ -1205,11 +1207,11 @@ const LIEUX = [
    nom:()=>"Potager", info:()=>infoZone("potager")},
   {id:"mare", emoji:"💧", x:.8, y:.275, ouvrir:()=>{ if(zoneOuverte("mare")) allerA("mare"); else dire("L'étang attend : il s'ouvre avec la cabane, ou quand six pots sont ouverts au potager."); },
    nom:()=>zoneOuverte("mare") ? "Mare" : "Mare · fermée", info:()=>zoneOuverte("mare") ? infoZone("mare") : null},
-  {id:"foyer", emoji:"🔥", x:.5, y:.625, ouvrir:()=>ouvrirFoyer(),
+  {id:"foyer", emoji:"🔥", x:.5, y:.66, ouvrir:()=>ouvrirFoyer(),
    nom:()=>bati("cabane") ? "Cabane" : "Campement", info:()=>{ const f=etat.cuissons.filter(x=>x.fin<=Date.now()).length, c=etat.cabane, l=c ? LIVRES.filter(x=>c.livres[x.id] && !c.livres[x.id].defauts.length && !c.lus[x.id]).length : 0; return f||l ? "!" : null; }},
-  {id:"boite", emoji:"📮", x:.43, y:.8, ouvrir:()=>allerA("courrier"),
+  {id:"boite", emoji:"📮", x:.33, y:.765, ouvrir:()=>allerA("courrier"),
    nom:()=>"Boîte aux lettres", info:()=>{ const v=etat.ville, n=CHAPITRES.filter(ch=>v.chapitres[ch.id] && !v.lus[ch.id]).length + v.lettres.filter(l=>!l.vue || aTout(l.items)).length + (MARCHE.nouveau?1:0); return n||null; }},
-  {id:"marche", emoji:"🪧", x:.5, y:.975, ouvrir:()=>allerA("marche"),
+  {id:"marche", emoji:"🪧", x:.64, y:.895, ouvrir:()=>allerA("marche"),
    nom:()=>"Saint-Aubin · marché", info:()=>null},
 ];
 function infoZone(z){ const pots=etat.zones[z].pots, prets=pots.filter(p=>p.plante && PLANTES[p.plante] && p.age>=PLANTES[p.plante].duree).length, soif=pots.filter(p=>p.plante && besoin(PLANTES[p.plante])==="rosee" && p.eau<=0 && p.age<PLANTES[p.plante].duree).length;
@@ -1231,7 +1233,8 @@ function ouvrirFoyer(){
   const c = ouvrirPanneau(`<h2>${cab?"🛖 La cabane":"🔥 Le campement"}</h2><div class="corps">${IMG && cab ? `<img class="cabaneImg" src="img/cabane-interieur-${estSoleilLeve()?"jour":"nuit"}.webp" alt="" onerror="this.remove()">` : ""}
     <p class="intro">${cab ? "Ta cabane : un feu pour cuisiner, un établi, et les livres." : "La vieille bâche d'Odile, tendue entre deux frênes. Un feu, une caisse à outils. En attendant la cabane, on fait avec."}</p>
     <div class="choixLieu">${choix.map(([id,e,n,d])=>`<button data-va="${id}"><span class="big">${e}</span><span><b>${n}</b><small>${d}</small></span></button>`).join("")}</div>
-    ${cab ? "" : `<p class="intro">Bâtir la cabane : touche la pierre plate au centre de la carte.</p>`}</div>`);
+    ${cab ? "" : `<button class="choix" id="batirCabane">🛖 Bâtir la cabane ici</button>`}</div>`);
+  const bc = $("batirCabane"); if(bc) bc.addEventListener("click", ()=>{ ouvrirBatiment.chantier = true; ouvrirBatiment("cabane"); });
   c.querySelectorAll("[data-va]").forEach(b=>b.addEventListener("click", ()=>{ const v=b.dataset.va; if(v==="reliure"){ ouvrirCabane(); return; } c.hidden=true; allerA(v); }));
 }
 const IMGS_OK = {}, IMGS_KO = {};
@@ -1257,7 +1260,7 @@ function rendreVillage(){
     if(fete==="citrouilles"){ const sombre = PHASE.phase==="nuit"||PHASE.phase==="crepuscule";
       // quelques lanternes posées dans l'herbe, par petits groupes : au départ du sentier, près de la cabane, au bord des terres
       // de petites citrouilles posées en bordure : orée du bois, haies de gauche et de droite, rochers du bas ; le centre reste libre
-      const pos = [[.16,.77,.45],[.19,.79,.36],[.24,.295,.45],[.275,.3,.36],[.34,.29,.38],[.42,.285,.4],[.6,.29,.45],[.635,.285,.36],[.7,.3,.38],[.84,.59,.45],[.815,.615,.36],[.2,.84,.55],[.245,.855,.42],[.37,.9,.45],[.4,.915,.36],[.68,.89,.5],[.715,.905,.4]];
+      const pos = [[.16,.77,.45],[.19,.79,.36],[.24,.295,.45],[.275,.3,.36],[.34,.29,.38],[.42,.285,.4],[.6,.29,.45],[.635,.285,.36],[.7,.3,.38],[.84,.59,.45],[.815,.615,.36],[.2,.84,.55],[.245,.855,.42],[.37,.9,.45],[.4,.915,.36],[.8,.9,.5],[.83,.915,.4]];
       fg.innerHTML = pos.map(([x,y,k])=>{ const T=w*.05*k, cx=w*x, cy=h*y;
         const halo = sombre ? `<circle cx="${cx}" cy="${cy-T*.35}" r="${T*1.1}" fill="url(#haloCitr)"/>` : "";
         return halo + (IMG ? `<image href="img/denree-lanterne.webp" x="${cx-T/2}" y="${cy-T*.85}" width="${T}" height="${T}" ${sombre?"":"opacity=\".95\""}></image>` : `<text x="${cx}" y="${cy}" font-size="${T*.8}" text-anchor="middle">🎃</text>`); }).join("")
@@ -1273,6 +1276,7 @@ function rendreVillage(){
     const T = IMG ? 300 : 160, bimg = n => `<image href="img/${n}.webp" x="${-T/2}" y="${-T*.68}" width="${T}" height="${T}" onerror="this.outerHTML='<text y=&quot;0&quot; font-size=&quot;120&quot; text-anchor=&quot;middle&quot;>${b.emoji}</text>'"></image>`;
     if(fini) g.innerHTML = (IMG ? bimg(`bat-${b.id}`) : dessinBatiment(b,true)) + (b.id==="ruche" && rucher().stock ? `<g class="pretMiel"><circle cx="${T*.32}" cy="${-T*.55}" r="${T*.13}" fill="#f4d58a" opacity=".9"/><text x="${T*.32}" y="${-T*.5}" font-size="${T*.15}" text-anchor="middle">🍯</text>${rucher().stock>1?`<text x="${T*.46}" y="${-T*.62}" font-size="${T*.1}" font-weight="700" fill="#f4d58a">×${rucher().stock}</text>`:""}</g>` : "");
     else if(enCours){ const p=Math.min(1,(now-ch.debut)/(ch.fin-ch.debut)); g.innerHTML = (IMG ? bimg(`bat-${b.id}-chantier`) : dessinBatiment(b,false)) + `<rect x="-40" y="${T*.32}" width="80" height="8" rx="4" fill="#3a3150"/><rect x="-40" y="${T*.32}" width="${80*p}" height="8" rx="4" fill="#f4d58a"/>`; }
+    else if(b.id==="cabane" && IMG) g.innerHTML = bimg("lieu-campement");   // avant la cabane : le campement d'Odile
     else g.innerHTML = `<ellipse rx="40" ry="18" fill="#55496b" opacity="${IMG?.3:.6}"/><ellipse rx="28" ry="11" fill="${IMG?"rgba(58,49,80,.5)":"#3a3150"}" stroke="#e8dcc0" stroke-width="3" stroke-dasharray="7 6"/>`;
     g.classList.toggle("vide", !fini && !enCours);
   }
@@ -1322,7 +1326,8 @@ function rendreSeuil(){
   const html = lignes.join(""); if(s.dataset.html!==html){ s.dataset.html = html; s.innerHTML = html; } if(s.hidden !== !lignes.length) s.hidden = !lignes.length;
 }
 function ouvrirBatiment(id){
-  if(id==="cabane" && bati("cabane")) return ouvrirFoyer();
+  if(id==="cabane" && (bati("cabane") || !(etat.village.chantier && etat.village.chantier.id==="cabane")) && !ouvrirBatiment.chantier) return ouvrirFoyer();
+  ouvrirBatiment.chantier = false;
   if(id==="ruche" && bati("ruche")){ if(rucher().stock) recolterMiel(); else ouvrirRuches(); return; }
   const b = BATIMENTS.find(x=>x.id===id), ch = etat.village.chantier, fini = bati(id), enCours = ch && ch.id===id;
   let corps = `<p class="intro">${b.texte}</p>`;
@@ -1843,7 +1848,7 @@ function ouvrirCarnet(){
     $("reset1").addEventListener("click", ()=>{ $("resetConfirme").hidden=false; $("reset1").disabled=true; });
     $("reset2").addEventListener("click", ()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem("jardin-de-nuit-v3"); }catch(e){} location.reload(); }); }
 }
-const VERSION_APP="0.19.0";
+const VERSION_APP="0.19.1";
 
 /* ---------- son ----------
    Boucles d'ambiance (vrais enregistrements, assets/sons/*.ogg) mixées en continu selon un contexte sonore,
